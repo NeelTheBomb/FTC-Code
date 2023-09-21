@@ -41,7 +41,7 @@ public class UnitTurnGyroExample extends LinearOpMode {
         double angle = stickToDegrees(gamepad1.right_stick_x, gamepad1.right_stick_y);
         double botHeading = -imu.getAngularOrientation().firstAngle;
         double angleFromRobot = angleDifference(botHeading, angle);
-        double turn = remap_range(-2*Math.PI, 2*Math.PI, -1, 1, angleFromRobot);
+        double turn = sticksAndImuToTurn(gamepad1.right_stick_x, gamepad1.right_stick_y, -imu.getAngularOrientation().firstAngle);
         telemetry.addData("TurnAngle", angle);
         telemetry.addData("x", gamepad1.right_stick_x);
         telemetry.addData("y", gamepad1.right_stick_y);
@@ -93,6 +93,12 @@ public double angleDifference(double actual, double desired) {
 }
 public double remap_range(double old_min, double old_max, double new_min, double new_max, double value) {
     return new_min + (value - old_min) * ((new_max - new_min) / (old_max - old_min));
+}
+public double sticksAndImuToTurn(float x,float y, double botHeading){
+    double angle = stickToDegrees(x, y);
+    double angleFromRobot = angleDifference(botHeading, angle);
+    double turn = remap_range(-2*Math.PI, 2*Math.PI, -1, 1, angleFromRobot);
+    return turn;
 }
 
 }
