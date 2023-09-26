@@ -1,5 +1,8 @@
 public class IK {
-    private double[] getTargetAngles(double targetX, double targetY, double armLength1, double armLength2) {
+    private static final double armLength1 = 40; // cm, roughly
+    private static final double armLength2 = 35; // cm, roughly
+    
+    private double[] getTargetAngles(double targetX, double targetY) {
         double num = (targetX * targetX) + (targetY * targetY) - (armLength1 * armLength1) - (armLength2 * armLength2);
         double den = 2 * armLength1 * armLength2;
         double arm2TargetAngle = Math.acos(num / den);
