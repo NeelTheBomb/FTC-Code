@@ -1,5 +1,3 @@
-package code;
-
 public class IK {
     private double[] getTargetAngles(double targetX, double targetY, double armLength1, double armLength2) {
         double num = (targetX * targetX) + (targetY * targetY) - (armLength1 * armLength1) - (armLength2 * armLength2);
