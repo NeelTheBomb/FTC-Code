@@ -1,6 +1,6 @@
 public class IK {
-    private static final double armLength1 = 40; // cm, roughly
-    private static final double armLength2 = 35; // cm, roughly
+    private static final double armLength1 = 49; // cm
+    private static final double armLength2 = 32; // cm
     
     private double[] getTargetAngles(double targetX, double targetY) {
         double num = (targetX * targetX) + (targetY * targetY) - (armLength1 * armLength1) - (armLength2 * armLength2);
