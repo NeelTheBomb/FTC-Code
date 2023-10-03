@@ -1,5 +1,6 @@
+//made by Neel, may have syntax errors
 
-//this is a class for a vector class, use this and import it into the teleop or autonomous
+//this is a class for a physics vectors, use this and import it into the teleop or autonomous somehow
 public class Vector {
     double magnitude;
     double angle;
@@ -53,7 +54,7 @@ public class Vector {
 
 
 
-//coming up are unrelated vector functions, you can implement this to know the location of the robot on the field
+//coming up are unrelated vector functions, you can implement this into a program to know the location of the robot on the field
 
 //in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
 public Vector finalwheelvector(Vector deltafl, Vector deltafr, Vector deltabl, Vector deltabr) {
@@ -76,6 +77,17 @@ public double newposition(double oldx, double oldy, Vector finalvector) {
     double newx = oldx + xchange;
     double newy = oldy + ychange;
     return newx, newy;
+}
+
+
+//this will return a x and y value that describes how much the wheels should move- think of this as the x and y of the joystick on last years movement code, divide constant adjusts how big the vector will be according to how faraway the desired position is
+public Vector desiredVector(double currentx, double currenty, double desiredx, double desiredy, double divideconstant) {
+    double movex = desiredx - currentx;
+    double movey = desiredy - currenty;
+    double wheelx = movex/divideconstant;
+    double wheely = movey/divideconstant;
+    return wheelx, wheely;
+    
 }
 
 
