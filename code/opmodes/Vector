@@ -1,23 +1,25 @@
+
+//this is a class for a vector class, use this and import it into the teleop or autonomous
 public class Vector {
-    double magnitude
-    double angle
-    double x
-    double y
+    double magnitude;
+    double angle;
+    double x;
+    double y;
 
     public Vector(double m, double a) {
-        this.magnitude = m
-        this.angle = a
-        this.x = Math.cos(a) * m
-        this.y = Math.sin(a) * m
+        this.magnitude = m;
+        this.angle = a;
+        this.x = Math.cos(a) * m;
+        this.y = Math.sin(a) * m;
         
     }
 
     public Vector add(List<Vector> vectors) {
-        double totaly = 0
-        double totalx = 0
+        double totaly = 0;
+        double totalx = 0;
         for (i = 0; i < vectors.size(); i++) {
-            totalx += vectors[i].x
-            totaly += vectors[i].y
+            totalx += vectors[i].x;
+            totaly += vectors[i].y;
             
         double vectorangle = Math.atan(totaly/totalx);
         if (totalx < 0 && totaly >= 0) {
@@ -27,29 +29,53 @@ public class Vector {
         else if (totalx > 0 && totaly < 0) {
             angle = (Math.PI) * 2 - Math.abs(angle);
         }
-        vectormagnitude = Math.sqr((totalx*totalx)+(totaly*totaly))
+        vectormagnitude = Math.sqr((totalx*totalx)+(totaly*totaly));
         return new Vector(vectormagnitude, vectorangle);  
         }
     }
 
     public double getx() {
-        return this.x
+        return this.x;
     }
 
 
     public double gety() {
-        return this.y
+        return this.y;
     }
 
     public double getmag() {
-        return this.magnitude
+        return this.magnitude;
     }
     public double getangle() {
-        return this.angle
+        return this.angle;
     }
 }
 
 
-public double finalwheelvector(Vector deltafl, Vector deltafr, Vector deltabl, Vector deltabr) {
+
+//coming up are unrelated vector functions, you can implement this to know the location of the robot on the field
+
+//in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
+public Vector finalwheelvector(Vector deltafl, Vector deltafr, Vector deltabl, Vector deltabr) {
+    Vector flvector = new Vector(deltafl, Math.pi/2);
+    Vector frvector = new Vector(deltafr, -Math.pi/2);
+    Vector blvector = new Vector(deltabl, -Math.pi/2);
+    Vector brvector = new Vector(deltabl, Math.pi/2);
+    List<Vector> wheelvectors = Arrays.asList(flvector, frvector, blvector, brvector);
     
+    //just using a random vector to use the add function in the vector class
+    Vector finalvector = flvector.add(wheelvectors);
+    return finalvector;
 }
+
+
+//in this function, you give you last known position and the change vector, giving you the new position
+public double newposition(double oldx, double oldy, Vector finalvector) {
+    double xchange = finalvector.getx();
+    double ychange = finalvector.gety();
+    double newx = oldx + xchange;
+    double newy = oldy + ychange;
+    return newx, newy;
+}
+
+
