@@ -15,11 +15,13 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 public class IKTest extends LinearOpMode {
     private DcMotorEx uArm;
     private DcMotorEx lArm;
-    
     private static final double armLength1 = 49; // cm
     private static final double armLength2 = 32; // cm
     
     final double velocity = 2000.0;
+    
+    private double lastValidTargetX;
+    private double lastValidTargetY;
 
     @Override
     public void runOpMode() {
@@ -68,6 +70,16 @@ public class IKTest extends LinearOpMode {
         double uArmCoefficient = 1000;
         
         double[] targetAngles = getTargetAngles(targetX, targetY);
+        
+        if (!Double.isNaN(targetAngles[0]) && !Double.isNaN(targetAngles[1])) {
+            lastValidTargetX = targetX;
+            lastValidTargetY = targetY;
+        }
+        else {
+            targetX = lastValidTargetX;
+            targetY = lastValidTargetY;
+            targetAngles = getTargetAngles(targetX, targetY);
+        }
         
         lArm.setTargetPosition((int) (targetAngles[0] * lArmCoefficient));
         lArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
