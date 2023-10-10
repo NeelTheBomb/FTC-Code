@@ -86,6 +86,12 @@ public Vector desiredVector(double currentx, double currenty, double desiredx, d
     double movey = desiredy - currenty;
     double wheelx = movex/divideconstant;
     double wheely = movey/divideconstant;
+
+    double finalx = Math.min(wheelx, 1);
+    finalx = Math.max(finalx, -1);
+    double finaly = Math.min(wheely, 1);
+    finaly = Math.max(finaly, 1);
+
     return wheelx, wheely;
     
 }
