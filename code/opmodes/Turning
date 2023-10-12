@@ -80,7 +80,7 @@ public double stickToDegrees(float x,float y) {
     return angle;
     }
     
-public double angleDifference(double actual, double desired) {
+public double angleDifference(double actual, double desired, double iteration_time) {
     double angle = actual - desired;
     double secondary = (2*Math.PI) - Math.abs(angle);
     double primary = angle;
@@ -89,9 +89,16 @@ public double angleDifference(double actual, double desired) {
     if (secondary < Math.abs(angle)) {
         primary = secondary;
     }
-    return primary;
+
+    //change these to affect the turning PID
+    double Kp = .4
+    double Kd = .2
+    double Ki = .01
+
+    double PID_primary = PID(Kp, Kd, Ki, primary, desired, iteration_time)
+    return PID_primary;
 }
-public double remap_range(double old_min, double old_max, double new_min, double new_max, double value) {
+public double remap_range(double old_min, double old_max, double new_min, double new_max, double value, double iteration_time) {
     return new_min + (value - old_min) * ((new_max - new_min) / (old_max - old_min));
 }
 public double sticksAndImuToTurn(float x,float y, double botHeading){
@@ -99,6 +106,17 @@ public double sticksAndImuToTurn(float x,float y, double botHeading){
     double angleFromRobot = angleDifference(botHeading, angle);
     double turn = remap_range(-2*Math.PI, 2*Math.PI, -1, 1, angleFromRobot);
     return turn;
+}
+
+//there needs to be 2 global variables for this to work: error_prior and integral_prior
+public double PID(double Kp, double, Kd, double Ki, double actual_value, double desired_value, double iteration_time) {
+    double error = desired_value – actual_value;
+    double integral = integral_prior + error * iteration_time;
+    double derivative = (error – error_prior) / iteration_time;
+    double output = Kp*error + Ki*integral + Kd*derivative + bias;
+    error_prior = error;
+    integral_prior = integral;
+    return output;
 }
 
 }
