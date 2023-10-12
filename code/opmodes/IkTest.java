@@ -15,8 +15,8 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 public class IKTest extends LinearOpMode {
     private DcMotorEx uArm;
     private DcMotorEx lArm;
-    private static final double armLength1 = 49; // cm
-    private static final double armLength2 = 32; // cm
+    private static final double armLength1 = 14.5; // in
+    private static final double armLength2 = 12.5; // in
     
     final double velocity = 2000.0;
     
