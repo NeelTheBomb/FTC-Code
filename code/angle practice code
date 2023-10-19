@@ -1,0 +1,26 @@
+public class MyClass {
+    public static void main(String args[]) {
+    double stickx = 0;
+    double sticky = 1;
+    double armlength1 = 14.5;
+    double armlength2 = 12.5;
+    double angle = Math.atan2(sticky, stickx);
+    System.out.println(angle);
+    double x = Math.cos(angle) * (armlength1 + armlength2);
+    double y = Math.sin(angle) * (armlength1 + armlength2);
+    System.out.println(x);
+    System.out.println(y);
+    double num = (x * x) + (y * y) - (armlength1 * armlength1) - (armlength2 * armlength2);
+    double den = 2 * armlength1 * armlength2;
+    double arm2TargetAngle = Math.acos(num / den);
+            
+    num = armlength2 * Math.sin(arm2TargetAngle);
+    den = armlength1 + (armlength2 * Math.cos(arm2TargetAngle));
+    double arm1TargetAngle = Math.atan(y / x) - Math.atan(num / den);
+    System.out.println(arm1TargetAngle *(180)/3.14);
+    System.out.println(arm2TargetAngle*180/3.14);
+    }
+
+}
+
+    
