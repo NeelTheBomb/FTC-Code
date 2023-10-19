@@ -147,8 +147,6 @@ public class Teleop2023 extends LinearOpMode {
             double armTargetY = Math.sin(armangle) * (armLength1 + armLength2);
             
             moveArm(armTargetX, armTargetY);
-            telemetry.addData("ystick", -gamepad2.left_stick_y);
-            telemetry.addData("xstick", gamepad2.left_stick_x);
             telemetry.addData("realx", armTargetX);
             telemetry.addData("realy", armTargetY);
             
@@ -243,10 +241,16 @@ public class Teleop2023 extends LinearOpMode {
             armTargetX = targetX;
             armTargetY = targetY;
             targetAngles = getTargetArmAngles(targetX, targetY);
-            
-            
             telemetry.addData("NAN", "NAN");
         }
+        
+
+        lArm.setTargetPosition((int)(targetX * lArmCoefficient * 180/3.14)); // Adjust this number
+        uArm.setTargetPosition((int)(targetY * lArmCoefficient * 180/3.14));
+        lArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        uArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        lArm.setVelocity(1);
+        uArm.setVelocity(1);
         
         telemetry.addData("targetX", targetX);
         telemetry.addData("targetY", targetY);
