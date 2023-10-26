@@ -251,6 +251,30 @@ public class Teleop2023 extends LinearOpMode {
         uArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         lArm.setVelocity(1);
         uArm.setVelocity(1);
+
+
+        //added this this is what you should add; dont copy whole thing.
+
+        double tolerance = 10;
+        double targetLower = (int)(targetX * lArmCoefficient * 180/3.14)
+        double targetUpper = (int)(targetY * lArmCoefficient * 180/3.14)
+        double actualLower = lArm.getCurrentPosition()
+        double actualUpper = uArm.getCurrentPosition()
+        
+        if (Math.abs(actualLower-targetLower) < tolerance) {
+            double Ldifference = -(actualLower-targetLower);
+            double Lmove = remap_range(-100, 100, -.5, .5, Ldifference);
+            if (Lmove > .5) {Lmove = .5;}
+            if (Lmove < -.5) {Lmove = -.5; }
+            lArm.setPower(Lmove);
+        }
+        if (Math.abs(actualUpper-targetUpper) < tolerance) {
+            double Udifference = -(actualUpper-targetUpper);
+            double Umove = remap_range(-100, 100, -.5, .5, Udifference);
+            if (Umove > .5) {Umove = .5;}
+            if (Umove < -.5) {Umove = -.5; }
+            uArm.setPower(Umove);
+        }
         
         telemetry.addData("targetX", targetX);
         telemetry.addData("targetY", targetY);
