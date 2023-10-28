@@ -1,0 +1,96 @@
+package org.firstinspires.ftc.teamcode.Event2023;
+import org.firstinspires.ftc.teamcode.*;
+import java.util.Queue;
+
+
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
+import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+
+@Autonomous
+
+public class TestAutonomous2023 extends LinearOpMode{
+    private DcMotorEx fl = null;
+    private DcMotorEx bl = null;
+    private DcMotorEx fr = null;
+    private DcMotorEx br = null;
+    double currentx = 0;
+    double currenty = 0;
+    double targetx =100;
+    double targety = 100;
+    // todo: write your code here
+    
+    @Override
+    public void runOpMode() {
+        fl = hardwareMap.get(DcMotorEx.class, "frontLeft");
+        bl = hardwareMap.get(DcMotorEx.class, "backLeft");
+        fr = hardwareMap.get(DcMotorEx.class, "frontRight");
+        br = hardwareMap.get(DcMotorEx.class, "backRight");
+        waitForStart();
+        if (isStopRequested()) return;
+
+        while (opModeIsActive()) {
+            
+        
+        double flTick = fl.getCurrentPosition();
+        double frTick = fr.getCurrentPosition();
+        double blTick = bl.getCurrentPosition();
+        double brTick = br.getCurrentPosition();
+        double 
+        
+        
+        
+            
+        }
+        
+    }
+    
+//in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
+public Vector finalwheelvector(Vector deltafl, Vector deltafr, Vector deltabl, Vector deltabr) {
+    Vector flvector = new Vector(deltafl, Math.pi/2);
+    Vector frvector = new Vector(deltafr, -Math.pi/2);
+    Vector blvector = new Vector(deltabl, -Math.pi/2);
+    Vector brvector = new Vector(deltabl, Math.pi/2);
+    List<Vector> wheelvectors = Arrays.asList(flvector, frvector, blvector, brvector);
+    
+    //just using a random vector to use the add function in the vector class
+    Vector finalvector = flvector.add(wheelvectors);
+    return finalvector;
+}
+
+
+public double[] newposition(double oldx, double oldy, Vector finalvector) {
+    double xchange = finalvector.getx();
+    double ychange = finalvector.gety();
+    double newx = oldx + xchange;
+    double newy = oldy + ychange;
+    double[] result = {newx,newy};
+    return result;
+}
+
+
+//this will return a x and y value that describes how much the wheels should move- think of this as the x and y of the joystick on last years movement code, divide constant adjusts how big the vector will be according to how faraway the desired position is
+public double[] desiredVector(double currentx, double currenty, double desiredx, double desiredy, double divideconstant) {
+    double movex = desiredx - currentx;
+    double movey = desiredy - currenty;
+    double wheelx = movex/divideconstant;
+    double wheely = movey/divideconstant;
+
+    double finalx = Math.min(wheelx, 1);
+    finalx = Math.max(finalx, -1);
+    double finaly = Math.min(wheely, 1);
+    finaly = Math.max(finaly, 1);
+
+    return new double[] {wheelx, wheely};
+    
+}
+}
