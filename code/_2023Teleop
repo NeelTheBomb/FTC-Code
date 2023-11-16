@@ -15,6 +15,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.Gamepad;
 
 
@@ -22,6 +23,7 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 public class Teleop2023 extends LinearOpMode {
     // initialize hardware variables
     private Servo gripper = null;
+    private CRServo droneLauncher = null;
     private DcMotorEx fl = null;
     private DcMotorEx bl = null;
     private DcMotorEx fr = null;
@@ -61,6 +63,7 @@ public class Teleop2023 extends LinearOpMode {
         lArm = hardwareMap.get(DcMotorEx.class, "lArm");
         uArm = hardwareMap.get(DcMotorEx.class, "uArm");
         intake = hardwareMap.get(DcMotorEx.class, "intake");
+        droneLauncher = hardwareMap.get(CRServo.class, "droneLauncher");
         
         // reset encoders to avoid problems
         uArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -91,6 +94,7 @@ public class Teleop2023 extends LinearOpMode {
             intake();
             arm();
             gripper();
+            droneLauncher();
         }
     }
     
@@ -178,5 +182,12 @@ public class Teleop2023 extends LinearOpMode {
     
     private void gripper() {
         
+    }
+    
+    
+    private void droneLauncher() {
+        if (gamepad2.right_bumper) {
+            droneLauncher.setPower(-1.0);
+        }
     }
 }
