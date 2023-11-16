@@ -36,8 +36,8 @@ public class Teleop2023 extends LinearOpMode {
     
     // arm constants
     // arm should always start horizontally on the intake side
-    private final int L_ARM_POSITIONS[] = { 0, 950 };
-    private final int U_ARM_POSITIONS[] = { 0, 770, 1000, 1200 };
+    private final int[] L_ARM_POSITIONS = { 0, 950 };
+    private final int[] U_ARM_POSITIONS = { 0, 770, 1000, 1200 };
     private final double U_ARM_VELOCITY = 1000.0;
     private final double L_ARM_VELOCITY = 500.0;
     
