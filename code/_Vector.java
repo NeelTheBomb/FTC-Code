@@ -3,10 +3,10 @@ import java.util.*;
 
     // todo: write your code here
 public class Vector {
-    private double magnitude;
-    private double angle;
-    private double x;
-    private double y;
+    private final double magnitude;
+    private final double angle;
+    private final double x;
+    private final double y;
 
     public Vector(double m, double a) {
         if (m < 0) {
