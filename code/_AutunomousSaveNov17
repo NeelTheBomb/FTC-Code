@@ -26,8 +26,6 @@ public class TestAutonomous2023 extends LinearOpMode{
     private BNO055IMU imu = null;
     public double pastx = 0;
     public double pasty = 0;
-    double targetx =100;
-    double targety = 100;
     
     //public past encoder values
     public double flPastTick = 0;
@@ -47,6 +45,7 @@ public class TestAutonomous2023 extends LinearOpMode{
         bl.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         br.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         
+        
         imu = hardwareMap.get(BNO055IMU.class, "gyro");
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         // Technically this is the default, however specifying it is clearer
@@ -60,27 +59,38 @@ public class TestAutonomous2023 extends LinearOpMode{
         while (opModeIsActive()) {
             
         
-        double flTick = fl.getCurrentPosition() - flPastTick;
+        double flTick = -fl.getCurrentPosition() - flPastTick;
         double frTick = fr.getCurrentPosition() - frPastTick;
-        double blTick = bl.getCurrentPosition() - blPastTick;
+        double blTick = -bl.getCurrentPosition() - blPastTick;
         double brTick = br.getCurrentPosition() - brPastTick;
-        Vector currentVector = finalwheelvector(flTick, frTick, blTick, brTick, 0.0);
+        Vector currentVector = finalwheelvector(flTick, frTick, blTick, brTick, -imu.getAngularOrientation().firstAngle);
         double[] pos = newposition(pastx, pasty, currentVector);
         pastx = pos[0];
         pasty = pos[1];
         telemetry.addData("pastx", pastx);
         telemetry.addData("pasty", pasty);
+        telemetry.addData("fr", fr.getCurrentPosition());
+            
+            
+            
+        double targetposx = -100;
+        double targetposy = -100;
+        double[] moveConstants = desiredVector(pastx, pasty, targetposx, targetposy, 60);
+        telemetry.addData("movex", moveConstants[0]);
+        telemetry.addData("movey", moveConstants[1]);  
+        telemetry.addData("turn", -imu.getAngularOrientation().firstAngle);  
+        
+        robotMove(moveConstants[0], moveConstants[1], 0);
+            
+            
             
         telemetry.update();
-        flPastTick = fl.getCurrentPosition();
+        flPastTick = -fl.getCurrentPosition();
         frPastTick = fr.getCurrentPosition();
-        blPastTick = bl.getCurrentPosition();
+        blPastTick = -bl.getCurrentPosition();
         brPastTick = br.getCurrentPosition();
         
-        
-        double targetposx = 0;
-        double targetposy = 0;
-        double[] moveConstants = desiredVector(pastx, pasty, targetposx, targetposy, 10);
+    
         
         }
         
@@ -88,14 +98,15 @@ public class TestAutonomous2023 extends LinearOpMode{
     
 //in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
 public Vector finalwheelvector(double deltafl, double deltafr, double deltabl, double deltabr, double imu) {
-    Vector flvector = new Vector(deltafl, Math.PI/2);
-    Vector frvector = new Vector(deltafr, (3*Math.PI)/2);
-    Vector blvector = new Vector(deltabl, (3*Math.PI)/2);
-    Vector brvector = new Vector(deltabl, Math.PI/2);
+    Vector flvector = new Vector(deltafl, Math.PI/4 + imu);
+    Vector frvector = new Vector(deltafr, (3*Math.PI)/4 + imu);
+    Vector blvector = new Vector(deltabl, (3*Math.PI)/4 + imu);
+    Vector brvector = new Vector(deltabr, Math.PI/4 + imu);
     // List<Vector> wheelvectors = Arrays.asList(flvector, frvector, blvector, brvector);
     Vector[] wheelvectors = new Vector[] {flvector, frvector, blvector, brvector};
     //just using a random vector to use the add function in the vector class
-    Vector finalVector = flvector.add(wheelvectors);
+    Vector finalVector = blvector.add(wheelvectors);
+    telemetry.addData("final", finalVector.getMagnitude());
     Vector translatedVector = new Vector(finalVector.getMagnitude(), finalVector.getAngle() + imu);
     return translatedVector;
 }
@@ -118,38 +129,46 @@ public double[] desiredVector(double currentx, double currenty, double desiredx,
     double wheelx = movex/divideconstant;
     double wheely = movey/divideconstant;
 
-    double finalx = Math.min(wheelx, 1);
-    finalx = Math.max(finalx, -1);
-    double finaly = Math.min(wheely, 1);
-    finaly = Math.max(finaly, 1);
+    // double finalx = Math.min(wheelx, 1);
+    // finalx = Math.max(finalx, -1);
+    // double finaly = Math.min(wheely, 1);
+    // finaly = Math.max(finaly, -1);
 
-    return new double[] {finalx, finaly};
+    return new double[] {wheelx, wheely};
     
     }
     
-private void robotMove() {
+private void robotMove(double rotX, double rotY, double rx) {
+    
+        fl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        fr.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        bl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        br.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        
         // TODO: rename x and y. What do these do ????
-        double x = -gamepad1.left_stick_x * 1.1; // Counteract imperfect strafing
-        double y = gamepad1.left_stick_y * .9; // Remember, this is reversed!
+        
+        // double x = -gamepad1.left_stick_x * 1.1; // Counteract imperfect strafing
+        // double y = gamepad1.left_stick_y * .9; // Remember, this is reversed!
         
         //MAX SPEED
-        double MAX_SPEED = 1;
+        double MAX_SPEED = .75;
  
         // Read inverse IMU heading, as the IMU heading is CW positive
         double botHeading = -imu.getAngularOrientation().firstAngle;
+        // rx = (-imu.getAngularOrientation().firstAngle-rx)/7;
 
-        double rotX = (x * Math.cos(botHeading) - y * Math.sin(botHeading)) / 2;
-        double rotY = (x * Math.sin(botHeading) + y * Math.cos(botHeading)) / 2;
-        double rx = ((gamepad1.right_stick_y) * Math.sin(botHeading) + (gamepad1.right_stick_x) *Math.cos(botHeading));
+        rotX = (rotX * Math.cos(botHeading) - rotY * Math.sin(botHeading)) / 2;
+        rotY = (rotX * Math.sin(botHeading) + rotY * Math.cos(botHeading)) / 2;
+ 
 
-        double denominator = Math.max(Math.abs(y) + Math.abs(x) + (rx), 1);
+        double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + (rx), 1);
         double frontLeftPower = (rotY + rotX - rx) / denominator;
         double backLeftPower = (rotY - rotX - rx) / denominator;
         double frontRightPower = (rotY - rotX + rx) / denominator;
         double backRightPower = (rotY + rotX  + rx) / denominator;
 
-        fl.setPower(frontLeftPower * MAX_SPEED);
-        bl.setPower(backLeftPower * MAX_SPEED);
+        fl.setPower(-frontLeftPower * MAX_SPEED);
+        bl.setPower(-backLeftPower * MAX_SPEED);
         fr.setPower(frontRightPower * MAX_SPEED);
         br.setPower(backRightPower * MAX_SPEED);
     }
