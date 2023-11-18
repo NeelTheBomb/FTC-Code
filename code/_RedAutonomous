@@ -1,9 +1,10 @@
 package org.firstinspires.ftc.teamcode.event2023;
+
 import static org.firstinspires.ftc.teamcode.lib.MathStuff.findMedian;
 import static org.firstinspires.ftc.teamcode.lib.MathStuff.smallestDiff;
 import org.firstinspires.ftc.teamcode.lib.Vector;
-import java.util.Queue;
 
+import java.util.Queue;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
@@ -19,9 +20,9 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import org.firstinspires.ftc.teamcode.HuskyLens.*;
 
+
 @Autonomous
 public class OfficialRedAutoCenterstage extends LinearOpMode{
-
     HuskyLens husky;
     private DcMotorEx fl = null;
     private DcMotorEx bl = null;
@@ -29,6 +30,7 @@ public class OfficialRedAutoCenterstage extends LinearOpMode{
     private DcMotorEx br = null;
     private BNO055IMU imu = null;
     private DcMotorEx intake = null;
+    
     public double pastx = 0;
     public double pasty = 0;
     
@@ -67,8 +69,6 @@ public class OfficialRedAutoCenterstage extends LinearOpMode{
         if (isStopRequested()) return;
 
         while (opModeIsActive()) {
-            
-        
         double flTick = -fl.getCurrentPosition() - flPastTick;
         double frTick = fr.getCurrentPosition() - frPastTick;
         double blTick = -bl.getCurrentPosition() - blPastTick;
@@ -93,7 +93,6 @@ public class OfficialRedAutoCenterstage extends LinearOpMode{
             } 
         }
         if (step == 1) {
-            
             husky.cmdRequest(husky.BLOCKS);
             
             int l = husky.blocks.length;
@@ -171,12 +170,45 @@ public class OfficialRedAutoCenterstage extends LinearOpMode{
         
         //middle_pos movements
         if (step == 6) {
+            double beginningYPos = 300;
+            double beginningXPos = 0;
+            boolean posCheck = moveToPos(beginningXPos, beginningYPos, pastx, pasty);
+            if (posCheck) {
+                step += 1;
+        } }
+        if (step == 7) {
+            int moveAmount = 3000;
+            intake.setTargetPosition(moveAmount);
+            intake.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            boolean posCheck = false;
+            if (Math.abs(fl.getTargetPosition() - fl.getCurrentPosition()) <= tolerance) {
+                posCheck = true;
+            }
+            if (posCheck) {
+                stop();
+            } 
+        }
+        
+        //right_pos movements
+        if (step == 8) {
             double beginningYPos = 250;
-            double beginningXPos = -200;
+            double beginningXPos = 200;
             boolean posCheck = moveToPos(beginningXPos, beginningYPos, pastx, pasty);
             if (posCheck) {
                 step += 1;
         } 
+        }
+        if (step == 9) {
+        int moveAmount = 3000;
+            intake.setTargetPosition(moveAmount);
+            intake.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+            boolean posCheck = false;
+            if (Math.abs(fl.getTargetPosition() - fl.getCurrentPosition()) <= tolerance) {
+                posCheck = true;
+            }
+            if (posCheck) {
+                stop();
+            } 
         }
             
             
