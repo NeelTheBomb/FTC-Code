@@ -1,0 +1,429 @@
+package org.firstinspires.ftc.teamcode.event2023;
+
+import static org.firstinspires.ftc.teamcode.lib.MathStuff.findMedian;
+import static org.firstinspires.ftc.teamcode.lib.MathStuff.smallestDiff;
+import org.firstinspires.ftc.teamcode.lib.Vector;
+
+import java.util.Queue;
+
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
+import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+import org.firstinspires.ftc.teamcode.HuskyLens.*;
+
+
+@Autonomous
+public class OfficialBlueAuto extends LinearOpMode{
+    HuskyLens husky;
+    private DcMotorEx fl = null;
+    private DcMotorEx bl = null;
+    private DcMotorEx fr = null;
+    private DcMotorEx br = null;
+    private BNO055IMU imu = null;
+    private DcMotorEx intake = null;
+    
+    public double pastX = 0;
+    public double pastY = 0;
+    
+    //public past encoder values
+    public double flPastTick = 0;
+    public double frPastTick = 0;
+    public double blPastTick = 0;
+    public double brPastTick = 0;
+    
+    //steps
+    public double step = 0;
+    
+    public void runOpMode() {
+        fl = hardwareMap.get(DcMotorEx.class, "frontLeft");
+        bl = hardwareMap.get(DcMotorEx.class, "backLeft");
+        fr = hardwareMap.get(DcMotorEx.class, "frontRight");
+        br = hardwareMap.get(DcMotorEx.class, "backRight");
+        husky = hardwareMap.get(HuskyLens.class, "husky");
+        intake = hardwareMap.get(DcMotorEx.class, "intake");
+        
+        fl.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        fr.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        bl.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        br.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        intake.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        
+        imu = hardwareMap.get(BNO055IMU.class, "gyro");
+        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
+        // Technically this is the default, however specifying it is clearer
+        parameters.angleUnit = BNO055IMU.AngleUnit.RADIANS;
+        // Without this, data retrieving from the IMU throws an exception
+        imu.initialize(parameters);
+        
+        waitForStart();
+        if (isStopRequested()) return;
+
+        while (opModeIsActive()) {
+        double flTick = -fl.getCurrentPosition() - flPastTick;
+        double frTick = fr.getCurrentPosition() - frPastTick;
+        double blTick = -bl.getCurrentPosition() - blPastTick;
+        double brTick = br.getCurrentPosition() - brPastTick;
+        
+        Vector currentVector = finalwheelvector(flTick, frTick, blTick, brTick, -imu.getAngularOrientation().firstAngle);
+        
+        double[] pos = newposition(pastX, pastY, currentVector);
+        pastX = pos[0];
+        pastY = pos[1];
+        
+        telemetry.addData("pastX", pastX);
+        telemetry.addData("pastY", pastY);
+        telemetry.addData("fr", fr.getCurrentPosition());
+         
+         // move out eventually frick
+        double tolerance = 10;
+        
+        //step counter
+        // TODO: turn into switch
+        // if (gamepad2.right_bumper) {
+        // step = 1;
+        // if (step == -1) {
+            
+        // }
+        if (step == 0) {
+            double beginningYPos = 60;
+            double beginningXPos = 0;
+            
+            boolean posCheck = moveToPos(beginningXPos, beginningYPos, pastX, pastY);
+            
+            if (posCheck) {
+                sleep(400);
+                step += 1;
+            } 
+        }
+        else if (step == 1) {
+            fl.setPower(0);
+            bl.setPower(0);
+            fr.setPower(0);
+            br.setPower(0);
+                
+            double largestHuskyX = 0;
+            double largestHuskyY = 0;
+            double threshold = 10;
+            int center = 0;
+            int[] centerMedian = new int[5];
+            
+            for (int c = 0; c < 5; c++) {
+                husky.cmdRequest(husky.BLOCKS);
+                int l = husky.blocks.length;
+                telemetry.addData("blocks", l);
+                for (int i = 0; i < l; i++) {
+                    telemetry.addData("block" + i, husky.blocks[i].center());
+                    double size = husky.blocks[i].width()*husky.blocks[i].height();
+                    
+                    if (size > largestHuskyX*largestHuskyY && size > threshold) {
+                        largestHuskyX = husky.blocks[i].width();
+                        largestHuskyY = husky.blocks[i].height();
+                        center = (int)(husky.blocks[i].center()); 
+                    } 
+                } 
+
+            centerMedian[c] = center;
+            sleep(20);
+            }
+            
+            telemetry.addData("centerMedian ", centerMedian[0]);
+            center = (int)(findMedian(centerMedian, centerMedian.length)); 
+            int left_pos = 60;
+            int middle_pos = 150;
+            int right_pos = 230;
+            int realCenter;
+            
+            int[] setValues = {left_pos, middle_pos, right_pos};
+            realCenter = smallestDiff(setValues, center);
+            telemetry.addData("finalcenter: ", center);
+            telemetry.addData("realCenter: ", realCenter);
+            telemetry.update();
+            if (realCenter == left_pos) {
+                step = 2;
+            }   
+            else if (realCenter == middle_pos) {
+                step = 6;
+            }
+            else if (realCenter == right_pos) {
+                step = 8;
+            }
+        }
+        //left_pos movements
+        else if (step == 2) {
+            double beginningYPos = 480;
+            double beginningXPos = 0;
+            boolean posCheck = moveToPos(beginningXPos, beginningYPos, pastX, pastY);
+            if (posCheck) {
+                step += 1;
+            } 
+        }
+        else if (step == 3) {
+        //   boolean posCheck = turnLeft(100, 20); //100 is turn amount 
+        //   if (posCheck) {
+                fl.setPower(0);
+                bl.setPower(0);
+                fr.setPower(0);
+                br.setPower(0);
+                step += 1;
+            // }
+        }
+        else if (step == 4) {
+            double beginningYPos = 480;
+            double beginningXPos = -330;
+            boolean posCheck = moveToPosTolerance(beginningXPos, beginningYPos, pastX, pastY, 30);
+            if (posCheck) {
+                fl.setPower(0);
+                bl.setPower(0);
+                fr.setPower(0);
+                br.setPower(0);
+                step += 1;
+            } 
+        }
+        else if (step == 5) {
+            intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            intake.setPower(-.29);
+            boolean posCheck = false;
+            // if (Math.abs(intake.getTargetPosition() - intake.getCurrentPosition()) <= tolerance) {
+            //     posCheck = true;
+            // }
+            if (posCheck) {
+                stop();
+            }
+        }
+        
+        //middle_pos movements
+        else if (step == 6) {
+            double beginningYPos = 500;
+            double beginningXPos = 0;
+            boolean posCheck = moveToPos(beginningXPos, beginningYPos, pastX, pastY);
+            if (posCheck) {
+                fl.setPower(0);
+                bl.setPower(0);
+                fr.setPower(0);
+                br.setPower(0);
+                step += 14;
+            } 
+        }
+            else if (step == 20) {
+            double beginningYPos = 480;
+            double beginningXPos = 0;
+            boolean posCheck = moveToPos(beginningXPos, beginningYPos, pastX, pastY);
+            if (posCheck) {
+                fl.setPower(0);
+                bl.setPower(0);
+                fr.setPower(0);
+                br.setPower(0);
+                step -= 13;
+            } 
+        }
+        else if (step == 7) {
+            int moveAmount = -3000;
+            intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            intake.setPower(-.29);
+            boolean posCheck = false;
+            // if (Math.abs(intake.getTargetPosition() - intake.getCurrentPosition()) <= tolerance) {
+            //     posCheck = true;
+            //}
+            if (posCheck) {
+                fl.setPower(0);
+                bl.setPower(0);
+                fr.setPower(0);
+                br.setPower(0);
+                stop();
+            }
+        }
+        
+        //right_pos movements
+        else if (step == 8) {
+            double beginningYPos = 400;
+            double beginningXPos = 320;
+            boolean posCheck = moveToPos(beginningXPos, beginningYPos, pastX, pastY);
+            if (posCheck) {
+                step += 1;
+            } 
+        }
+        else if (step == 9) {
+            fl.setPower(0);
+            bl.setPower(0);
+            fr.setPower(0);
+            br.setPower(0);
+            int moveAmount = -3000;
+            
+            intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            intake.setPower(-.29);
+            boolean posCheck = false;
+            // if (Math.abs(intake.getTargetPosition() - intake.getCurrentPosition()) <= tolerance) {
+            //     posCheck = true;
+            // }
+            if (posCheck) {
+                fl.setPower(0);
+                bl.setPower(0);
+                fr.setPower(0);
+                br.setPower(0);
+                stop();
+            } 
+        }   
+        // }
+        // else {
+        //         fl.setPower(0);
+        //         bl.setPower(0);
+        //         fr.setPower(0);
+        //         br.setPower(0);
+        // }
+        
+        telemetry.addData("step", step);
+            
+        telemetry.update();
+        
+        flPastTick = -fl.getCurrentPosition();
+        frPastTick = fr.getCurrentPosition();
+        blPastTick = -bl.getCurrentPosition();
+        brPastTick = br.getCurrentPosition();
+        }
+    }
+    
+    
+    //in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
+    private Vector finalwheelvector(double delta_fl, double delta_fr, double delta_bl, double delta_br, double imu) {
+        Vector flvector = new Vector(delta_fl, Math.PI/4 + imu);
+        Vector frvector = new Vector(delta_fr, (3*Math.PI)/4 + imu);
+        Vector blvector = new Vector(delta_bl, (3*Math.PI)/4 + imu);
+        Vector brvector = new Vector(delta_br, Math.PI/4 + imu);
+    
+        // List<Vector> wheelvectors = Arrays.asList(flvector, frvector, blvector, brvector);
+        Vector[] wheelvectors = new Vector[] {flvector, frvector, blvector, brvector};
+        //just using a random vector to use the add function in the vector class
+        Vector finalVector = blvector.add(wheelvectors);
+        Vector translatedVector = new Vector(finalVector.getMagnitude(), finalVector.getAngle() + imu);
+    
+        telemetry.addData("final", finalVector.getMagnitude());
+    
+        return translatedVector;
+    }
+
+
+    private double[] newposition(double oldx, double oldy, Vector finalvector) {
+        double xchange = finalvector.getX();
+        double ychange = finalvector.getY();
+        
+        double newx = oldx + xchange;
+        double newy = oldy + ychange;
+        
+        double[] result = {newx,newy};
+        
+        return result;
+    }
+
+
+    //this will return a x and y value that describes how much the wheels should move- think of this as the x and y of the joystick on last years movement code, divide constant adjusts how big the vector will be according to how faraway the desired position is
+    private double[] desiredVector(double currentX, double currentY, double desiredX, double desiredY, double divisionConstant) {
+        double moveX = desiredX - currentX;
+        double moveY = desiredY - currentY;
+        double wheelx = moveX/divisionConstant;
+        double wheely = moveY/divisionConstant;
+
+        // double finalx = Math.min(wheelx, 1);
+        // finalx = Math.max(finalx, -1);
+        // double finaly = Math.min(wheely, 1);
+        // finaly = Math.max(finaly, -1);
+    
+        return new double[] {wheelx, wheely};
+    }
+    
+
+    private void robotMove(double rotX, double rotY, double rx) {
+        fl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        fr.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        bl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        br.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            
+        // TODO: rename x and y. What do these do ????
+            
+        // double x = -gamepad1.left_stick_x * 1.1; // Counteract imperfect strafing
+        // double y = gamepad1.left_stick_y * .9; // Remember, this is reversed!
+        
+        //MAX SPEED
+        double MAX_SPEED = .75;
+    
+        // Read inverse IMU heading, as the IMU heading is CW positive
+        double botHeading = -imu.getAngularOrientation().firstAngle;
+        // rx = (-imu.getAngularOrientation().firstAngle-rx)/7;
+
+        rotX = (rotX * Math.cos(botHeading) - rotY * Math.sin(botHeading)) / 2;
+        rotY = (rotX * Math.sin(botHeading) + rotY * Math.cos(botHeading)) / 2;
+    
+        double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + (rx), 1);
+        double frontLeftPower = (rotY + rotX - rx) / denominator;
+        double backLeftPower = (rotY - rotX - rx) / denominator;
+        double frontRightPower = (rotY - rotX + rx) / denominator;
+        double backRightPower = (rotY + rotX  + rx) / denominator;
+
+        fl.setPower(-frontLeftPower * MAX_SPEED);
+        bl.setPower(-backLeftPower * MAX_SPEED);
+        fr.setPower(frontRightPower * MAX_SPEED);
+        br.setPower(backRightPower * MAX_SPEED);
+    }
+    
+    
+    private boolean moveToPos(double targetPosX, double targetPosY, double pastX, double pastY) {
+        double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, 60);
+        telemetry.addData("moveX", moveConstants[0]);
+        telemetry.addData("moveY", moveConstants[1]);  
+        telemetry.addData("turn", -imu.getAngularOrientation().firstAngle); 
+        telemetry.update();
+        
+        robotMove(moveConstants[0], moveConstants[1], 0);
+        double tolerance = 10;
+
+        return ((Math.abs(pastX - targetPosX) <= tolerance) && Math.abs(pastY - targetPosY) <= tolerance);
+    }
+    
+    private boolean moveToPosTolerance(double targetPosX, double targetPosY, double pastX, double pastY, double tolerance) {
+        double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, 60);
+        telemetry.addData("moveX", moveConstants[0]);
+        telemetry.addData("moveY", moveConstants[1]);  
+        telemetry.addData("turn", -imu.getAngularOrientation().firstAngle); 
+        telemetry.update();
+        
+        robotMove(moveConstants[0], moveConstants[1], 0);
+
+        return ((Math.abs(pastX - targetPosX) <= tolerance) && Math.abs(pastY - targetPosY) <= tolerance);
+    }
+
+
+    private boolean turnLeft(int turnAmount, int tolerance) {
+        // fl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        // fr.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        // bl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        // br.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+    
+        fl.setTargetPosition(turnAmount);
+        fr.setTargetPosition(turnAmount);
+        bl.setTargetPosition(turnAmount);
+        br.setTargetPosition(turnAmount);
+    
+        fl.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        fr.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        bl.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        br.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+    
+        // TODO: simplify return
+        if ((Math.abs(fl.getTargetPosition() - fl.getCurrentPosition()) <= tolerance) 
+                && (Math.abs(fr.getTargetPosition() - br.getCurrentPosition()) <= tolerance)
+                && (Math.abs(bl.getTargetPosition() - bl.getCurrentPosition()) <= tolerance)
+                && (Math.abs(br.getTargetPosition() - br.getCurrentPosition()) <= tolerance)) {
+            
+            return true;
+        }
+        return false;
+    }
+}
