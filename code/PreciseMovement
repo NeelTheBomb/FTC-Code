@@ -30,6 +30,15 @@ public class PreciseMovement {
     
     double tolerance;
     
+    //Positions and Motor Ticks
+    double xPos;
+    double yPos;
+    
+    double flPastTick;
+    double frPastTick;
+    double blPastTick;
+    double brPastTick;
+    
     public  PreciseMovement(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
         this.fr =fr;
         this.fl =fl;
@@ -50,6 +59,14 @@ public class PreciseMovement {
         this.angle_error_prior = 0;
         
         this.tolerance= 10;
+        
+        //initializing positions
+        this.xPos = 0;
+        this.yPos = 0;
+        this.flPastTick = 0;
+        this.frPastTick= 0;
+        this.blPastTick = 0;
+        this.brPastTick = 0;
     }
     
     //in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
@@ -153,7 +170,7 @@ public class PreciseMovement {
         this.tolerance = t;
     }
     
-    public boolean moveToPos(double targetPosX, double targetPosY, double pastX, double pastY, double iteration_time) {
+    private boolean moveToPos(double targetPosX, double targetPosY, double pastX, double pastY, double iteration_time) {
         double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, iteration_time);
         
         robotMove(moveConstants[0], moveConstants[1], 0);
@@ -161,11 +178,35 @@ public class PreciseMovement {
         return ((Math.abs(pastX - targetPosX) <= tolerance) && Math.abs(pastY - targetPosY) <= this.tolerance);
     }
     
-    public boolean moveToAngle(double targetAngle, double currentAngle, double iteration_time) {
-        double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, iteration_time);
+    private boolean moveToAngle(double targetAngle, double currentAngle, double iteration_time) {
+        // double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, iteration_time);
         
-        robotMove(0, 0, 0);
+        robotMove(0, 0, MathStuff.shortestAngleRemapped(currentAngle, targetAngle));
 
-        return ((Math.abs(pastX - targetPosX) <= tolerance) && Math.abs(pastY - targetPosY) <= tolerance);
+        return MathStuff.shortestAngleRemapped(currentAngle, targetAngle) < tolerance;
+    }
+    
+    public boolean userMoveToPos(double targetPosX, double targetPosY, double iteration_time) {
+        double flTick = -fl.getCurrentPosition() - flPastTick;
+        double frTick = fr.getCurrentPosition() - frPastTick;
+        double blTick = -bl.getCurrentPosition() - blPastTick;
+        double brTick = br.getCurrentPosition() - brPastTick;
+        
+        Vector currentVector = finalwheelvector(flTick, frTick, blTick, brTick, -imu.getAngularOrientation().firstAngle);
+        double[] pos = newposition(this.xPos, this.yPos, currentVector);
+        this.xPos = pos[0];
+        this.yPos = pos[1];
+        
+        flPastTick = -fl.getCurrentPosition();
+        frPastTick = fr.getCurrentPosition();
+        blPastTick = -bl.getCurrentPosition();
+        brPastTick = br.getCurrentPosition();
+        
+        return moveToPos(targetPosX, targetPosY, this.xPos, this.yPos, iteration_time);
+    }
+    
+    public boolean userMoveToAngle(double targetAngle, double iteration_time) {
+        return moveToAngle(targetAngle, -imu.getAngularOrientation().firstAngle, iteration_time);
     }
 }
+
