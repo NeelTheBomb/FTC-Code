@@ -8,38 +8,39 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 
 public class PreciseMovement {
-    DcMotorEx fr;
-    DcMotorEx fl;
-    DcMotorEx br;
-    DcMotorEx bl;
-    BNO055IMU imu;
+    private DcMotorEx fr;
+    private DcMotorEx fl;
+    private DcMotorEx br;
+    private DcMotorEx bl;
+    private BNO055IMU imu;
     
-    //MovementPID
-    double movementKp;
-    double movementKi;
-    double movementKd;
-    double movement_integral_prior;
-    double movement_error_prior;
+    // MovementPID
+    private double movementKp;
+    private double movementKi;
+    private double movementKd;
+    private double movement_integral_prior;
+    private double movement_error_prior;
     
-    //AnglePID
-    double angleKp;
-    double angleKi;
-    double angleKd;
-    double angle_integral_prior;
-    double angle_error_prior;
+    // AnglePID
+    private double angleKp;
+    private double angleKi;
+    private double angleKd;
+    private double angle_integral_prior;
+    private double angle_error_prior;
     
-    double tolerance;
+    private double tolerance;
+    private double angleTolerance;
     
-    //Positions and Motor Ticks
-    double xPos;
-    double yPos;
+    // Positions and Motor Ticks
+    private double xPos;
+    private double yPos;
     
-    double flPastTick;
-    double frPastTick;
-    double blPastTick;
-    double brPastTick;
+    private double flPastTick;
+    private double frPastTick;
+    private double blPastTick;
+    private double brPastTick;
     
-    public  PreciseMovement(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
+    public PreciseMovement(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
         this.fr =fr;
         this.fl =fl;
         this.br = br;
@@ -58,9 +59,11 @@ public class PreciseMovement {
         this.angle_integral_prior = 0;
         this.angle_error_prior = 0;
         
-        this.tolerance= 10;
+        // innitializing tolerances
+        this.tolerance = 10;
+        this.angleTolerance = .05;
         
-        //initializing positions
+        // initializing positions
         this.xPos = 0;
         this.yPos = 0;
         this.flPastTick = 0;
@@ -69,8 +72,9 @@ public class PreciseMovement {
         this.brPastTick = 0;
     }
     
-    //in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
-    public Vector finalwheelvector(double delta_fl, double delta_fr, double delta_bl, double delta_br, double imu) {
+
+    // in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
+    private Vector finalwheelvector(double delta_fl, double delta_fr, double delta_bl, double delta_br, double imu) {
         Vector flvector = new Vector(delta_fl, Math.PI/4 + imu);
         Vector frvector = new Vector(delta_fr, (3*Math.PI)/4 + imu);
         Vector blvector = new Vector(delta_bl, (3*Math.PI)/4 + imu);
@@ -82,12 +86,11 @@ public class PreciseMovement {
         Vector finalVector = blvector.add(wheelvectors);
         Vector translatedVector = new Vector(finalVector.getMagnitude(), finalVector.getAngle() + imu);
     
-
         return translatedVector;
     }
-
-
-    public double[] newposition(double oldx, double oldy, Vector finalvector) {
+    
+    
+    private double[] newposition(double oldx, double oldy, Vector finalvector) {
         double xchange = finalvector.getX();
         double ychange = finalvector.getY();
         
@@ -98,28 +101,22 @@ public class PreciseMovement {
         
         return result;
     }
-
-
+    
+    
     //this will return a x and y value that describes how much the wheels should move- think of this as the x and y of the joystick on last years movement code, divide constant adjusts how big the vector will be according to how faraway the desired position is
     private double[] desiredVector(double currentX, double currentY, double desiredX, double desiredY, double iteration_time) {
         double currentHypotnuse = Math.sqrt(Math.pow(currentX, 2) * Math.pow(currentY, 2));
         double desiredHypotnuse = Math.sqrt(Math.pow(desiredX, 2) * Math.pow(desiredY, 2));
         double[] wheelValues = PID(this.movementKp, this.movementKd, this.movementKi, currentHypotnuse, desiredHypotnuse, this.movement_integral_prior, this.movement_error_prior,iteration_time);
-        double wheelHyp = wheelValues[1];
+        double wheelHyp = wheelValues[0];
         this.movement_error_prior = wheelValues[1];
         this.movement_integral_prior = wheelValues[2];
     
         return new double[] {Math.cos(wheelHyp), Math.sin(wheelHyp)};
     }
     
-
+    
     private void robotMove(double rotX, double rotY, double rx) {
-            
-        // TODO: rename x and y. What do these do ????
-            
-        // double x = -gamepad1.left_stick_x * 1.1; // Counteract imperfect strafing
-        // double y = gamepad1.left_stick_y * .9; // Remember, this is reversed!
-        
         //MAX SPEED
         double MAX_SPEED = .75;
     
@@ -142,6 +139,7 @@ public class PreciseMovement {
         br.setPower(backRightPower * MAX_SPEED);
     }
     
+    
     //there needs to be 2 global variables for this to work: error_prior and integral_prior
     private double[] PID(double Kp, double Kd, double Ki, double actual_value, double desired_value, double integral_prior, double error_prior, double iteration_time) {
         double error = desired_value - actual_value;
@@ -151,6 +149,8 @@ public class PreciseMovement {
         return new double[] {output, error, integral};
     }
     
+    
+    //SETTERS
     public void setMovementPID(double Kp, double Kd, double Ki) {
         this.movementKp = Kp;
         this.movementKd = Kd;
@@ -158,6 +158,7 @@ public class PreciseMovement {
         this.movement_integral_prior = 0;
         this.movement_error_prior = 0;
     }
+    
     public void setAnglePID(double Kp, double Kd, double Ki) {
         this.angleKp = Kp;
         this.angleKd = Kd;
@@ -170,6 +171,22 @@ public class PreciseMovement {
         this.tolerance = t;
     }
     
+    public void setAngleTolerance(double t) {
+        this.angleTolerance = t;
+    }
+    
+    
+    //GETTERS
+    public double[] getPos() {
+        return new double[] {this.xPos, this.yPos};
+    }
+    
+    public double getDistanceFromPos(double targetPosX, double targetPosY) {
+        return Math.sqrt(Math.pow(targetPosX-this.xPos, 2) + Math.pow(targetPosY-this.yPos, 2));
+    }
+    
+    
+    //FUNCTIONS
     private boolean moveToPos(double targetPosX, double targetPosY, double pastX, double pastY, double iteration_time) {
         double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, iteration_time);
         
@@ -180,13 +197,24 @@ public class PreciseMovement {
     
     private boolean moveToAngle(double targetAngle, double currentAngle, double iteration_time) {
         // double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, iteration_time);
+        double[] angleValues = PID(this.angleKp, this.angleKd, this.angleKi, currentAngle, targetAngle, this.angle_integral_prior, this.angle_error_prior,iteration_time);
+        double angleDifference = angleValues[0];
+        this.angle_error_prior = angleValues[1];
+        this.angle_integral_prior = angleValues[2];
+        robotMove(0, 0, angleDifference);
         
-        robotMove(0, 0, MathStuff.shortestAngleRemapped(currentAngle, targetAngle));
-
-        return MathStuff.shortestAngleRemapped(currentAngle, targetAngle) < tolerance;
+        return Math.abs(MathStuff.shortestAngleRemapped(currentAngle, targetAngle)) < angleTolerance;
     }
     
     public boolean userMoveToPos(double targetPosX, double targetPosY, double iteration_time) {
+        return moveToPos(targetPosX, targetPosY, this.xPos, this.yPos, iteration_time);
+    }
+    
+    public boolean userMoveToAngle(double targetAngle, double iteration_time) {
+        return moveToAngle(targetAngle, -imu.getAngularOrientation().firstAngle, iteration_time);
+    }
+    
+    public void updatePos() {
         double flTick = -fl.getCurrentPosition() - flPastTick;
         double frTick = fr.getCurrentPosition() - frPastTick;
         double blTick = -bl.getCurrentPosition() - blPastTick;
@@ -201,12 +229,5 @@ public class PreciseMovement {
         frPastTick = fr.getCurrentPosition();
         blPastTick = -bl.getCurrentPosition();
         brPastTick = br.getCurrentPosition();
-        
-        return moveToPos(targetPosX, targetPosY, this.xPos, this.yPos, iteration_time);
-    }
-    
-    public boolean userMoveToAngle(double targetAngle, double iteration_time) {
-        return moveToAngle(targetAngle, -imu.getAngularOrientation().firstAngle, iteration_time);
     }
 }
-
