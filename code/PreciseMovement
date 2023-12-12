@@ -1,12 +1,14 @@
 package org.firstinspires.ftc.teamcode.lib;
 
 // first
-import org.firstinspires.ftc.teamcode.lib.Vector;
-import org.firstinspires.ftc.teamcode.lib.MathStuff;
-
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+
+// our stuff
+import org.firstinspires.ftc.teamcode.lib.Vector;
+import org.firstinspires.ftc.teamcode.lib.MathStuff;
 
 // our static stuff
 import static org.firstinspires.ftc.teamcode.lib.MathStuff.sqr;
@@ -29,19 +31,19 @@ public class PreciseMovement {
 
     /******* PUBLIC FUNCTIONS ********/
     // all motors run forward
-    public void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
+    public static void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
         _init(imu, fr, fl, br, bl, false, false, false, false);
     }
     
     // Specify which motors to reverse
-    public void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
+    public static void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
                      boolean flRev, boolean brRev, boolean blRev) {
         _init(imu, fr, fl, br, bl, frRev, flRev, brRev, blRev);
     }
 
 
     /******* PUBLIC FUNCTIONS ********/
-    public boolean moveToPos(double targetPosX, double targetPosY, double iterationTime) {
+    public static boolean moveToPos(double targetPosX, double targetPosY, double iterationTime) {
         double[] moveConstants = desiredVector(xPos, yPos, targetPosX, targetPosY, iterationTime);
 
         robotMove(moveConstants[0], moveConstants[1], 0);
@@ -50,7 +52,7 @@ public class PreciseMovement {
     }
 
 
-    public boolean moveToAngle(double targetAngle, double iterationTime) {
+    public static boolean moveToAngle(double targetAngle, double iterationTime) {
         double[] angleValues = PID(angleKp, angleKd, angleKi, -imu.getAngularOrientation().firstAngle, targetAngle,
                 angleIntegralPrior, angleErrorPrior, iterationTime);
 
@@ -59,18 +61,18 @@ public class PreciseMovement {
         angleIntegralPrior = angleValues[2];
         robotMove(0, 0, angleDifference);
 
-        return Math.abs(shortestAngleRemapped(currentAngle, targetAngle)) < angleTolerance;
+        return Math.abs(shortestAngleRemapped(currentAngle(), targetAngle)) < angleTolerance;
     }
 
 
-    public void updatePos() {
+    public static void updatePos() {
         double flTick = fl.getCurrentPosition() - flPastTick;
         double frTick = fr.getCurrentPosition() - frPastTick;
         double blTick = bl.getCurrentPosition() - blPastTick;
         double brTick = br.getCurrentPosition() - brPastTick;
 
         Vector currentVector = finalWheelVector(flTick, frTick, blTick, brTick, -imu.getAngularOrientation().firstAngle);
-        double[] pos = newposition(xPos, yPos, currentVector);
+        double[] pos = newPosition(xPos, yPos, currentVector);
         xPos = pos[0];
         yPos = pos[1];
 
@@ -82,21 +84,21 @@ public class PreciseMovement {
     }
 
 
-    public double distanceFromPos(double targetPosX, double targetPosY) {
+    public static double distanceFromPos(double targetPosX, double targetPosY) {
         return Math.sqrt(sqr(targetPosX-xPos) + sqr(targetPosY-yPos));
     }
 
 
     /******* GETTERS ********/
-    public double[] getPos() { return new double[] { xPos, yPos }; }
+    public static double[] getPos() { return new double[] { xPos, yPos }; }
 
 
     /******* SETTERS ********/
-    public void setMovementTolerance(double t) { movementTolerance = t; }
+    public static void setMovementTolerance(double t) { movementTolerance = t; }
 
-    public void setAngleTolerance(double t) { angleTolerance = t; }
+    public static void setAngleTolerance(double t) { angleTolerance = t; }
 
-    public void setMovementPID(double kp, double kd, double ki) {
+    public static void setMovementPID(double kp, double kd, double ki) {
         movementKp = kp;
         movementKd = kd;
         movementKi = ki;
@@ -104,7 +106,7 @@ public class PreciseMovement {
         movementErrorPrior = 0;
     }
 
-    public void setAnglePID(double Kp, double Kd, double Ki) {
+    public static void setAnglePID(double Kp, double Kd, double Ki) {
         angleKp = Kp;
         angleKd = Kd;
         angleKi = Ki;
@@ -114,7 +116,7 @@ public class PreciseMovement {
 
 
     /******* PRIVATE FUNCTIONS ********/
-    private void _init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
+    private static void _init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
                        boolean flRev, boolean brRev, boolean blRev) {
         PreciseMovement.fr = fr;
         PreciseMovement.fl = fl;
@@ -144,14 +146,14 @@ public class PreciseMovement {
         PreciseMovement.blPastTick = 0.0;
         PreciseMovement.brPastTick = 0.0;
         
-        if (frRev) { fr.setDirection(DcMotor.REVERSE); }
-        if (flRev) { fl.setDirection(DcMotor.REVERSE); }
-        if (brRev) { br.setDirection(DcMotor.REVERSE); }
-        if (blRev) { bl.setDirection(DcMotor.REVERSE); }
+        if (frRev) { fr.setDirection(DcMotor.Direction.REVERSE); }
+        if (flRev) { fl.setDirection(DcMotor.Direction.REVERSE); }
+        if (brRev) { br.setDirection(DcMotor.Direction.REVERSE); }
+        if (blRev) { bl.setDirection(DcMotor.Direction.REVERSE); }
     }
 
 
-    private Vector finalWheelVector(double deltaFl, double deltaFr, double deltaBl, double deltaBr, double robotAngle) {
+    private static Vector finalWheelVector(double deltaFl, double deltaFr, double deltaBl, double deltaBr, double robotAngle) {
         Vector flvector = new Vector(deltaFl, Math.PI*0.25 + robotAngle);
         Vector frvector = new Vector(deltaFr, Math.PI*0.75 + robotAngle);
         Vector blvector = new Vector(deltaBl, Math.PI*0.75 + robotAngle);
@@ -164,7 +166,7 @@ public class PreciseMovement {
     }
 
 
-    private double[] newPosition(double oldX, double oldY, Vector finalVector) {
+    private static double[] newPosition(double oldX, double oldY, Vector finalVector) {
         return new double[] { oldX + finalVector.getX(), oldY + finalVector.getY() };
     }
 
@@ -173,7 +175,7 @@ public class PreciseMovement {
     // Think of this as the x and y of the joystick on last year's movement code
     // Divide constant adjusts how big the vector will be according to how faraway the desired position is
     // iterationTime should be in milliseconds
-    private double[] desiredVector(double currentX, double currentY, double desiredX, double desiredY, double iterationTime) {
+    private static double[] desiredVector(double currentX, double currentY, double desiredX, double desiredY, double iterationTime) {
         double targetDistance = Math.sqrt(sqr(desiredX-currentX) * sqr(desiredY-currentY));
         double angle = Math.atan2((desiredX-currentX), (desiredY-currentY));
 
@@ -187,7 +189,7 @@ public class PreciseMovement {
     }
 
 
-    private void robotMove(double rotX, double rotY, double rx) {
+    private static void robotMove(double rotX, double rotY, double rx) {
         final double MAX_SPEED = 0.75;
 
         // Read inverse IMU heading, as the IMU heading is CW positive
@@ -209,7 +211,7 @@ public class PreciseMovement {
     }
 
 
-    private double[] PID(double kp, double kd, double ki, double actualValue, double desiredValue,
+    private static double[] PID(double kp, double kd, double ki, double actualValue, double desiredValue,
                          double integralPrior, double errorPrior, double iterationTime) {
 
         double error = desiredValue - actualValue;
@@ -218,5 +220,10 @@ public class PreciseMovement {
         double output = kp*error + ki*integral + kd*derivative;
 
         return new double[] { output, error, integral };
+    }
+    
+    
+    private static double currentAngle() {
+        return -imu.getAngularOrientation().firstAngle;
     }
 }
