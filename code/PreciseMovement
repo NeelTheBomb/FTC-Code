@@ -1,4 +1,6 @@
 package org.firstinspires.ftc.teamcode.lib;
+
+// first
 import org.firstinspires.ftc.teamcode.lib.Vector;
 import org.firstinspires.ftc.teamcode.lib.MathStuff;
 
@@ -6,228 +8,215 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
+// our static stuff
+import static org.firstinspires.ftc.teamcode.lib.MathStuff.sqr;
+import static org.firstinspires.ftc.teamcode.lib.MathStuff.shortestAngleRemapped;
+
 
 public class PreciseMovement {
-    private DcMotorEx fr;
-    private DcMotorEx fl;
-    private DcMotorEx br;
-    private DcMotorEx bl;
-    private BNO055IMU imu;
-    
-    // MovementPID
-    private double movementKp;
-    private double movementKi;
-    private double movementKd;
-    private double movement_integral_prior;
-    private double movement_error_prior;
-    
-    // AnglePID
-    private double angleKp;
-    private double angleKi;
-    private double angleKd;
-    private double angle_integral_prior;
-    private double angle_error_prior;
-    
-    private double tolerance;
-    private double angleTolerance;
-    
-    // Positions and Motor Ticks
-    private double xPos;
-    private double yPos;
-    
-    private double flPastTick;
-    private double frPastTick;
-    private double blPastTick;
-    private double brPastTick;
-    
-    public PreciseMovement(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
-        this.fr =fr;
-        this.fl =fl;
-        this.br = br;
-        this.bl = bl;
-        this.imu = imu;  
-        
-        this.movementKp = .5;
-        this.movementKi = 0;
-        this.movementKd = 0;
-        this.movement_integral_prior = 0;
-        this.movement_error_prior =0;
-        
-        this.angleKp = .5;
-        this.angleKi = 0;
-        this.angleKd = 0;
-        this.angle_integral_prior = 0;
-        this.angle_error_prior = 0;
-        
-        // innitializing tolerances
-        this.tolerance = 10;
-        this.angleTolerance = .05;
-        
-        // initializing positions
-        this.xPos = 0;
-        this.yPos = 0;
-        this.flPastTick = 0;
-        this.frPastTick= 0;
-        this.blPastTick = 0;
-        this.brPastTick = 0;
-    }
-    
+    private static DcMotorEx fr, fl, br, bl;
+    private static BNO055IMU imu;
 
-    // in this function, you put in the delta of all your wheel encoder changes and it returns a final vector
-    private Vector finalwheelvector(double delta_fl, double delta_fr, double delta_bl, double delta_br, double imu) {
-        Vector flvector = new Vector(delta_fl, Math.PI/4 + imu);
-        Vector frvector = new Vector(delta_fr, (3*Math.PI)/4 + imu);
-        Vector blvector = new Vector(delta_bl, (3*Math.PI)/4 + imu);
-        Vector brvector = new Vector(delta_br, Math.PI/4 + imu);
-    
-        // List<Vector> wheelvectors = Arrays.asList(flvector, frvector, blvector, brvector);
-        Vector[] wheelvectors = new Vector[] {flvector, frvector, blvector, brvector};
-        //just using a random vector to use the add function in the vector class
-        Vector finalVector = blvector.add(wheelvectors);
-        Vector translatedVector = new Vector(finalVector.getMagnitude(), finalVector.getAngle() + imu);
-    
-        return translatedVector;
+    // MovementPID
+    private static double movementKp, movementKi, movementKd, movementIntegralPrior, movementErrorPrior;
+
+    // AnglePID
+    private static double angleKp, angleKi, angleKd, angleIntegralPrior, angleErrorPrior, movementTolerance, angleTolerance;
+
+    // Positions and Motor Ticks
+    private static double xPos, yPos, flPastTick, frPastTick, blPastTick, brPastTick;
+
+
+    /******* PUBLIC FUNCTIONS ********/
+    // all motors run forward
+    public void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
+        _init(imu, fr, fl, br, bl, false, false, false, false);
     }
     
-    
-    private double[] newposition(double oldx, double oldy, Vector finalvector) {
-        double xchange = finalvector.getX();
-        double ychange = finalvector.getY();
-        
-        double newx = oldx + xchange;
-        double newy = oldy + ychange;
-        
-        double[] result = {newx,newy};
-        
-        return result;
+    // Specify which motors to reverse
+    public void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
+                     boolean flRev, boolean brRev, boolean blRev) {
+        _init(imu, fr, fl, br, bl, frRev, flRev, brRev, blRev);
     }
-    
-    
-    //this will return a x and y value that describes how much the wheels should move- think of this as the x and y of the joystick on last years movement code, divide constant adjusts how big the vector will be according to how faraway the desired position is
-    private double[] desiredVector(double currentX, double currentY, double desiredX, double desiredY, double iteration_time) {
-        double currentHypotnuse = Math.sqrt(Math.pow(currentX, 2) * Math.pow(currentY, 2));
-        double desiredHypotnuse = Math.sqrt(Math.pow(desiredX, 2) * Math.pow(desiredY, 2));
-        double[] wheelValues = PID(this.movementKp, this.movementKd, this.movementKi, currentHypotnuse, desiredHypotnuse, this.movement_integral_prior, this.movement_error_prior,iteration_time);
-        double wheelHyp = wheelValues[0];
-        this.movement_error_prior = wheelValues[1];
-        this.movement_integral_prior = wheelValues[2];
-    
-        return new double[] {Math.cos(wheelHyp), Math.sin(wheelHyp)};
+
+
+    /******* PUBLIC FUNCTIONS ********/
+    public boolean moveToPos(double targetPosX, double targetPosY, double iterationTime) {
+        double[] moveConstants = desiredVector(xPos, yPos, targetPosX, targetPosY, iterationTime);
+
+        robotMove(moveConstants[0], moveConstants[1], 0);
+
+        return distanceFromPos(targetPosX, targetPosY) < 10;
     }
-    
-    
+
+
+    public boolean moveToAngle(double targetAngle, double iterationTime) {
+        double[] angleValues = PID(angleKp, angleKd, angleKi, -imu.getAngularOrientation().firstAngle, targetAngle,
+                angleIntegralPrior, angleErrorPrior, iterationTime);
+
+        double angleDifference = angleValues[0];
+        angleErrorPrior = angleValues[1];
+        angleIntegralPrior = angleValues[2];
+        robotMove(0, 0, angleDifference);
+
+        return Math.abs(shortestAngleRemapped(currentAngle, targetAngle)) < angleTolerance;
+    }
+
+
+    public void updatePos() {
+        double flTick = fl.getCurrentPosition() - flPastTick;
+        double frTick = fr.getCurrentPosition() - frPastTick;
+        double blTick = bl.getCurrentPosition() - blPastTick;
+        double brTick = br.getCurrentPosition() - brPastTick;
+
+        Vector currentVector = finalWheelVector(flTick, frTick, blTick, brTick, -imu.getAngularOrientation().firstAngle);
+        double[] pos = newposition(xPos, yPos, currentVector);
+        xPos = pos[0];
+        yPos = pos[1];
+
+        // remember past encoder values
+        flPastTick = fl.getCurrentPosition();
+        frPastTick = fr.getCurrentPosition();
+        blPastTick = bl.getCurrentPosition();
+        brPastTick = br.getCurrentPosition();
+    }
+
+
+    public double distanceFromPos(double targetPosX, double targetPosY) {
+        return Math.sqrt(sqr(targetPosX-xPos) + sqr(targetPosY-yPos));
+    }
+
+
+    /******* GETTERS ********/
+    public double[] getPos() { return new double[] { xPos, yPos }; }
+
+
+    /******* SETTERS ********/
+    public void setMovementTolerance(double t) { movementTolerance = t; }
+
+    public void setAngleTolerance(double t) { angleTolerance = t; }
+
+    public void setMovementPID(double kp, double kd, double ki) {
+        movementKp = kp;
+        movementKd = kd;
+        movementKi = ki;
+        movementIntegralPrior = 0;
+        movementErrorPrior = 0;
+    }
+
+    public void setAnglePID(double Kp, double Kd, double Ki) {
+        angleKp = Kp;
+        angleKd = Kd;
+        angleKi = Ki;
+        angleIntegralPrior = 0;
+        angleErrorPrior = 0;
+    }
+
+
+    /******* PRIVATE FUNCTIONS ********/
+    private void _init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
+                       boolean flRev, boolean brRev, boolean blRev) {
+        PreciseMovement.fr = fr;
+        PreciseMovement.fl = fl;
+        PreciseMovement.br = br;
+        PreciseMovement.bl = bl;
+        PreciseMovement.imu = imu;
+
+        PreciseMovement.movementKp = 0.5;
+        PreciseMovement.movementKi = 0.0;
+        PreciseMovement.movementKd = 0.0;
+        PreciseMovement.movementIntegralPrior = 0.0;
+        PreciseMovement.movementErrorPrior = 0.0;
+
+        PreciseMovement.angleKp = 0.5;
+        PreciseMovement.angleKi = 0.0;
+        PreciseMovement.angleKd = 0.0;
+        PreciseMovement.angleIntegralPrior = 0.0;
+        PreciseMovement.angleErrorPrior = 0.0;
+
+        PreciseMovement.movementTolerance = 10.0;
+        PreciseMovement.angleTolerance = 0.05;
+
+        PreciseMovement.xPos = 0.0;
+        PreciseMovement.yPos = 0.0;
+        PreciseMovement.flPastTick = 0.0;
+        PreciseMovement.frPastTick = 0.0;
+        PreciseMovement.blPastTick = 0.0;
+        PreciseMovement.brPastTick = 0.0;
+        
+        if (frRev) { fr.setDirection(DcMotor.REVERSE); }
+        if (flRev) { fl.setDirection(DcMotor.REVERSE); }
+        if (brRev) { br.setDirection(DcMotor.REVERSE); }
+        if (blRev) { bl.setDirection(DcMotor.REVERSE); }
+    }
+
+
+    private Vector finalWheelVector(double deltaFl, double deltaFr, double deltaBl, double deltaBr, double robotAngle) {
+        Vector flvector = new Vector(deltaFl, Math.PI*0.25 + robotAngle);
+        Vector frvector = new Vector(deltaFr, Math.PI*0.75 + robotAngle);
+        Vector blvector = new Vector(deltaBl, Math.PI*0.75 + robotAngle);
+        Vector brvector = new Vector(deltaBr, Math.PI*0.25 + robotAngle);
+
+        Vector[] wheelVectors = new Vector[] { flvector, frvector, blvector, brvector };
+        // just using a random vector to use the add function in the vector class
+        Vector finalVector = blvector.add(wheelVectors);
+        return new Vector(finalVector.getMagnitude(), finalVector.getAngle() + robotAngle);
+    }
+
+
+    private double[] newPosition(double oldX, double oldY, Vector finalVector) {
+        return new double[] { oldX + finalVector.getX(), oldY + finalVector.getY() };
+    }
+
+
+    // This will return an x and y value that describes how much the wheels should move
+    // Think of this as the x and y of the joystick on last year's movement code
+    // Divide constant adjusts how big the vector will be according to how faraway the desired position is
+    // iterationTime should be in milliseconds
+    private double[] desiredVector(double currentX, double currentY, double desiredX, double desiredY, double iterationTime) {
+        double targetDistance = Math.sqrt(sqr(desiredX-currentX) * sqr(desiredY-currentY));
+        double angle = Math.atan2((desiredX-currentX), (desiredY-currentY));
+
+        double[] wheelValues = PID(movementKp, movementKd, movementKi, 0, targetDistance,
+                movementIntegralPrior, movementErrorPrior, iterationTime);
+
+        movementErrorPrior = wheelValues[1];
+        movementIntegralPrior = wheelValues[2];
+
+        return new double[] { Math.cos(angle) * wheelValues[0], Math.sin(angle) * wheelValues[0] };
+    }
+
+
     private void robotMove(double rotX, double rotY, double rx) {
-        //MAX SPEED
-        double MAX_SPEED = .75;
-    
+        final double MAX_SPEED = 0.75;
+
         // Read inverse IMU heading, as the IMU heading is CW positive
         double botHeading = -imu.getAngularOrientation().firstAngle;
-        // rx = (-imu.getAngularOrientation().firstAngle-rx)/7;
 
         rotX = (rotX * Math.cos(botHeading) - rotY * Math.sin(botHeading)) / 2;
         rotY = (rotX * Math.sin(botHeading) + rotY * Math.cos(botHeading)) / 2;
-    
+
         double denominator = Math.max(Math.abs(rotY) + Math.abs(rotX) + (rx), 1);
         double frontLeftPower = (rotY + rotX - rx) / denominator;
         double backLeftPower = (rotY - rotX - rx) / denominator;
         double frontRightPower = (rotY - rotX + rx) / denominator;
         double backRightPower = (rotY + rotX  + rx) / denominator;
 
-        fl.setPower(-frontLeftPower * MAX_SPEED);
-        bl.setPower(-backLeftPower * MAX_SPEED);
+        fl.setPower(frontLeftPower * MAX_SPEED);
+        bl.setPower(backLeftPower * MAX_SPEED);
         fr.setPower(frontRightPower * MAX_SPEED);
         br.setPower(backRightPower * MAX_SPEED);
     }
-    
-    
-    //there needs to be 2 global variables for this to work: error_prior and integral_prior
-    private double[] PID(double Kp, double Kd, double Ki, double actual_value, double desired_value, double integral_prior, double error_prior, double iteration_time) {
-        double error = desired_value - actual_value;
-        double integral = integral_prior + error * iteration_time;
-        double derivative = (error - error_prior) / iteration_time;
-        double output = Kp*error + Ki*integral + Kd*derivative;
-        return new double[] {output, error, integral};
-    }
-    
-    
-    //SETTERS
-    public void setMovementPID(double Kp, double Kd, double Ki) {
-        this.movementKp = Kp;
-        this.movementKd = Kd;
-        this.movementKi = Ki;
-        this.movement_integral_prior = 0;
-        this.movement_error_prior = 0;
-    }
-    
-    public void setAnglePID(double Kp, double Kd, double Ki) {
-        this.angleKp = Kp;
-        this.angleKd = Kd;
-        this.angleKi = Ki;
-        this.angle_integral_prior = 0;
-        this.angle_error_prior = 0;
-    }
-    
-    public void setTolerance(double t) {
-        this.tolerance = t;
-    }
-    
-    public void setAngleTolerance(double t) {
-        this.angleTolerance = t;
-    }
-    
-    
-    //GETTERS
-    public double[] getPos() {
-        return new double[] {this.xPos, this.yPos};
-    }
-    
-    public double getDistanceFromPos(double targetPosX, double targetPosY) {
-        return Math.sqrt(Math.pow(targetPosX-this.xPos, 2) + Math.pow(targetPosY-this.yPos, 2));
-    }
-    
-    
-    //FUNCTIONS
-    private boolean moveToPos(double targetPosX, double targetPosY, double pastX, double pastY, double iteration_time) {
-        double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, iteration_time);
-        
-        robotMove(moveConstants[0], moveConstants[1], 0);
 
-        return ((Math.abs(pastX - targetPosX) <= tolerance) && Math.abs(pastY - targetPosY) <= this.tolerance);
-    }
-    
-    private boolean moveToAngle(double targetAngle, double currentAngle, double iteration_time) {
-        // double[] moveConstants = desiredVector(pastX, pastY, targetPosX, targetPosY, iteration_time);
-        double[] angleValues = PID(this.angleKp, this.angleKd, this.angleKi, currentAngle, targetAngle, this.angle_integral_prior, this.angle_error_prior,iteration_time);
-        double angleDifference = angleValues[0];
-        this.angle_error_prior = angleValues[1];
-        this.angle_integral_prior = angleValues[2];
-        robotMove(0, 0, angleDifference);
-        
-        return Math.abs(MathStuff.shortestAngleRemapped(currentAngle, targetAngle)) < angleTolerance;
-    }
-    
-    public boolean userMoveToPos(double targetPosX, double targetPosY, double iteration_time) {
-        return moveToPos(targetPosX, targetPosY, this.xPos, this.yPos, iteration_time);
-    }
-    
-    public boolean userMoveToAngle(double targetAngle, double iteration_time) {
-        return moveToAngle(targetAngle, -imu.getAngularOrientation().firstAngle, iteration_time);
-    }
-    
-    public void updatePos() {
-        double flTick = -fl.getCurrentPosition() - flPastTick;
-        double frTick = fr.getCurrentPosition() - frPastTick;
-        double blTick = -bl.getCurrentPosition() - blPastTick;
-        double brTick = br.getCurrentPosition() - brPastTick;
-        
-        Vector currentVector = finalwheelvector(flTick, frTick, blTick, brTick, -imu.getAngularOrientation().firstAngle);
-        double[] pos = newposition(this.xPos, this.yPos, currentVector);
-        this.xPos = pos[0];
-        this.yPos = pos[1];
-        
-        flPastTick = -fl.getCurrentPosition();
-        frPastTick = fr.getCurrentPosition();
-        blPastTick = -bl.getCurrentPosition();
-        brPastTick = br.getCurrentPosition();
+
+    private double[] PID(double kp, double kd, double ki, double actualValue, double desiredValue,
+                         double integralPrior, double errorPrior, double iterationTime) {
+
+        double error = desiredValue - actualValue;
+        double integral = integralPrior + error * iterationTime;
+        double derivative = (error - errorPrior) / iterationTime;
+        double output = kp*error + ki*integral + kd*derivative;
+
+        return new double[] { output, error, integral };
     }
 }
