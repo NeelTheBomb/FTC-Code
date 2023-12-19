@@ -1,8 +1,6 @@
 package org.firstinspires.ftc.teamcode;
 
-// our imports
-// empty
-
+// first
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.Disabled;
@@ -17,72 +15,64 @@ import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.hardware.CRServo;
 
+// our classes
+import org.firstinspires.ftc.teamcode.lib.PreciseMovement;
+
+// our static functions
+import static org.firstinspires.ftc.teamcode.lib.MathStuff.remapRange;
+import static org.firstinspires.ftc.teamcode.lib.MathStuff.shortestAngleRemapped;
+import static org.firstinspires.ftc.teamcode.lib.MathStuff.sqr;
+
 
 @TeleOp(name="2023TeleOp", group="Linear Opmode")
 public class Teleop2023 extends LinearOpMode {
     // initialize hardware variables
-    private Servo gripper = null;
-    private Servo droneLauncher = null;
     private DcMotorEx fl = null;
     private DcMotorEx bl = null;
     private DcMotorEx fr = null;
     private DcMotorEx br = null;
-    private DcMotorEx uArm = null;
-    private DcMotorEx lArm = null;
-    private DcMotorEx intake = null;
+    private DcMotorEx slide = null;
+    private DcMotorEx tIntake = null;
+    private DcMotorEx sIntake = null;
+    private DcMotorEx arm = null;
+    private Servo drone = null;
+    private Servo lGripper = null;
+    private Servo rGripper = null;
+    // private Servo gripper = null;
     private BNO055IMU imu = null;
-    private Servo lGrip = null;
-    private Servo rGrip = null;
-    private Servo wrist = null;
-    private CRServo wheelIntake = null;
     
-    // movement constants
-    private final double MAX_SPEED = 0.9;
-    
-    // arm constants
-    // arm should always start horizontally on the intake side
-    private final int[] L_ARM_POSITIONS = {0, 1671};//{ 0, 950 };
-    private final int[] U_ARM_POSITIONS = { 0, 0, 100, 1200, 1400 };//{ 0, 770, 1000, 1200, 1400 };
-    private final double U_ARM_VELOCITY = 1000.0;
-    private final double L_ARM_VELOCITY = 3000.0;
-    
-    // gripper constants
-    private final double GRIPPER_CLOSE = 0.25;
-    private final double GRIPPER_OPEN = 1.0;
-    private boolean gripperGripping = false;
-    private boolean lastGripperGripping = false;
-    
-    private double rx = 0.0;
+    private double rxMultiplier = 0.9;
 
     @Override
     public void runOpMode() {
         // Declare our motors
-        // Make sure your ID's match your configuration
-        fl = hardwareMap.get(DcMotorEx.class, "frontLeft");
-        bl = hardwareMap.get(DcMotorEx.class, "backLeft");
-        fr = hardwareMap.get(DcMotorEx.class, "frontRight");
-        br = hardwareMap.get(DcMotorEx.class, "backRight");
-        lArm = hardwareMap.get(DcMotorEx.class, "lArm");
-        uArm = hardwareMap.get(DcMotorEx.class, "uArm");
-        intake = hardwareMap.get(DcMotorEx.class, "intake");
-        droneLauncher = hardwareMap.get(Servo.class, "droneLauncher");
-        // lGrip = hardwareMap.get(Servo.class, "lGrip");
-        // rGrip = hardwareMap.get(Servo.class, "rGrip");
-        // wrist = hardwareMap.get(Servo.class, "wrist");
-        wheelIntake = hardwareMap.get(CRServo.class, "wheelIntake");
+        fl = hardwareMap.get(DcMotorEx.class, "frontLeft");      // front left
+        bl = hardwareMap.get(DcMotorEx.class, "backLeft");       // back left
+        fr = hardwareMap.get(DcMotorEx.class, "frontRight");     // front right
+        br = hardwareMap.get(DcMotorEx.class, "backRight");      // back right
+        // slide = hardwareMap.get(DcMotorEx.class, "slide");       // slide
+        // tIntake = hardwareMap.get(DcMotorEx.class, "tIntake");   // torque intake
+        // sIntake = hardwareMap.get(DcMotorEx.class, "sIntake");   // speed intake
+        // arm = hardwareMap.get(DcMotorEx.class, "arm");           // arm
+        // drone = hardwareMap.get(Servo.class, "drone");           // drone
+        // lGripper = hardwareMap.get(Servo.class, "gripperLeft");  // left gripper    
+        // rGripper = hardwareMap.get(Servo.class, "gripperRight"); // right gripper
+        // gripper = hardwareMap.get(Servo.class, "gripper");
         
-        // reset encoders to avoid problems
-        uArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        lArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        // reset encoders
+        fl.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        fr.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        bl.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        br.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        // slide.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        
+        // // set zeroPowerBehavior
+        // slide.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         
         // reverse stuff
-        fr.setDirection(DcMotor.Direction.REVERSE);
-        br.setDirection(DcMotor.Direction.REVERSE);
-        // uArm.setDirection(DcMotor.Direction.REVERSE);
-        // rGrip.setDirection(Servo.Direction.REVERSE);
-        
-        // lArm.setVelocityPIDFCoefficients(.8, .2, .08, .01);
-        
+        fl.setDirection(DcMotor.Direction.REVERSE);
+        bl.setDirection(DcMotor.Direction.REVERSE);
+        // slide.setDirection(DcMotor.Direction.REVERSE);
         
         // Retrieve the IMU from the hardware map
         imu = hardwareMap.get(BNO055IMU.class, "gyro");
@@ -95,165 +85,158 @@ public class Teleop2023 extends LinearOpMode {
         // wait until init is pressed
         waitForStart();
         
-        // move the lower arm down a bit and reset the encoder
-        lArm.setTargetPosition(-40);
-        lArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
         while (opModeIsActive()) {
-            robotMove();
-            intake();
-            if (gamepad2.right_bumper) {
-                lArm.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-                if (gamepad2.right_trigger > .2) {lArm.setPower(-gamepad2.right_trigger);}
-                else if (gamepad2.left_trigger > .2) {lArm.setPower(gamepad2.left_trigger);}
-                else {lArm.setPower(0);}
-            }
-            else {
-            arm();
-            }
-            if (gamepad2.left_bumper) {
-                if (gamepad2.right_trigger > .2) {wheelIntake.setPower((int)gamepad2.right_trigger/2);}
-                if (gamepad2.left_trigger > .2) {wheelIntake.setPower(-(int)gamepad2.left_trigger/3);}
-            }
-            if (gamepad1.dpad_up) {lArm.setPower(1);}
-            if (gamepad1.dpad_down) {lArm.setPower(-1);}
-            // gripper(); //not used
-            droneLauncher(); //not used
-            telemetry();
-            telemetry.addData("uArm", uArm.getCurrentPosition());
-            telemetry.addData("lArm", lArm.getCurrentPosition());
+            move();
+            // slide();
+            // arm();
+            // drone();
+            // gripper();
+            
             telemetry.update();
         }
     }
     
     
-    private void robotMove() {
-        // TODO: rename x and y. What do these do ????
-        double x = -gamepad1.left_stick_x * 1.1; // Counteract imperfect strafing
-        double y = gamepad1.left_stick_y * .9; // Remember, this is reversed!
- 
-        // Read inverse IMU heading, as the IMU heading is CW positive
-        double botHeading = -imu.getAngularOrientation().firstAngle;
+    private void move() {
+        // Changing encoder mode
+        fl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        fr.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        bl.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        br.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        double maxSpeed = 0.7;
+        
+                
+        
+        double botHeading = -(imu.getAngularOrientation().firstAngle);
+        
+        // old turning
+        double rx = ((gamepad1.right_stick_y) * Math.sin(botHeading) + (gamepad1.right_stick_x) *Math.cos(botHeading));
 
-        double rotX = (x * Math.cos(botHeading) - y * Math.sin(botHeading)) / 2;
-        double rotY = (x * Math.sin(botHeading) + y * Math.cos(botHeading)) / 2;
-        rx = ((gamepad1.right_stick_y) * Math.sin(botHeading) + (gamepad1.right_stick_x) *Math.cos(botHeading));
+        //  double rx = 0.0;
+        //  if (Math.abs(gamepad1.right_stick_x) >= 0.1 || Math.abs(gamepad1.right_stick_y) >= Math.abs(0.1)) {
+        //      rx = shortestAngleRemapped(botHeading, Math.atan2(gamepad1.right_stick_y, gamepad1.right_stick_x));
+        //      rx *= rxMultiplier;
+        //  }
+        
+        double x = gamepad1.left_stick_x * 1.1; // Counteract imperfect strafing
+        double y = -gamepad1.left_stick_y * .9; // Remember, this is reversed!
+        double theta = Math.atan2(y, x);
+        double power = Math.hypot(x, y);
 
-        double denominator = Math.max(Math.abs(y) + Math.abs(x) + (rx), 1);
-        double frontLeftPower = (rotY + rotX - rx) / denominator;
-        double backLeftPower = (rotY - rotX - rx) / denominator;
-        double frontRightPower = (rotY - rotX + rx) / denominator;
-        double backRightPower = (rotY + rotX  + rx) / denominator;
+        // double rotX = (x * Math.cos(botHeading) - y * Math.sin(botHeading)) / 2;
+        // double rotY = (x * Math.sin(botHeading) + y * Math.cos(botHeading)) / 2;
+        // telemetry.addData("angle", botHeading);
 
-        fl.setPower(frontLeftPower * MAX_SPEED);
-        bl.setPower(backLeftPower * MAX_SPEED);
-        fr.setPower(frontRightPower * MAX_SPEED);
-        br.setPower(backRightPower * MAX_SPEED);
-    }
-    
-    
-    private void intake() {
-        // intake out
-        if (gamepad1.right_trigger > 0.2) {
-            intake.setPower(-gamepad1.right_trigger / 3);
+        //  telemetry.addData("maththing", Math.atan2(gamepad1.right_stick_y, gamepad1.right_stick_x));
+        //  telemetry.addData("rx", rx);
+        
+        // double denominator = Math.max(Math.abs(y) + Math.abs(x) + (rx), 1);
+        // double frontLeftPower = (rotY + rotX - rx) / denominator;
+        // double backLeftPower = (rotY - rotX - rx) / denominator;
+        // double frontRightPower = (rotY - rotX + rx) / denominator;
+        // double backRightPower = (rotY + rotX  + rx) / denominator;
+        
+        
+        theta += botHeading;
+        double sin = Math.sin(theta - Math.PI/4);
+        double cos = Math.cos(theta - Math.PI/4);
+        double max = Math.max(Math.abs(sin), Math.abs(cos));
+        
+        double frontLeftPower = power * cos/max + rx;
+        double frontRightPower = power * sin/max - rx;
+        double backLeftPower = power * sin/max + rx;
+        double backRightPower = power * cos/max - rx;
+        
+        if ((power + Math.abs(rx)) > 1){
+            frontLeftPower /= power + rx;
+            frontRightPower /= power + rx;
+            backLeftPower /= power + rx;
+            backRightPower /= power + rx;
         }
-        // intake in
-        else if (gamepad1.left_trigger > 0.2) {
-            intake.setPower(gamepad1.left_trigger);
+        
+        
+
+        fl.setPower(frontLeftPower * maxSpeed);
+        bl.setPower(backLeftPower * maxSpeed);
+        fr.setPower(frontRightPower * maxSpeed);
+        br.setPower(backRightPower * maxSpeed);
+    }
+
+    
+    private void slide() {
+        slide.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        
+        final int LOWEST_POSITION = 0;
+        final int HIGHEST_POSITION = 2500;
+        
+        // left trigger down, right trigger up
+        double triggerInput = gamepad2.right_trigger - gamepad2.left_trigger;
+        double currentPosition = slide.getCurrentPosition();
+        double remapControl = 1.5;
+        
+        if (currentPosition < LOWEST_POSITION) {
+            slide.setPower(.1);
+        }
+        else if (currentPosition > HIGHEST_POSITION) {
+            slide.setPower(-.1);
+        }
+        else if (triggerInput > .2) {
+        // if either trigger pressed
+            double powerControl = remapRange(LOWEST_POSITION, HIGHEST_POSITION, 0, remapControl, currentPosition);
+            powerControl = 1/Math.pow(Math.abs(powerControl),3);
+            slide.setPower(powerControl*triggerInput);
+        }
+        else if (triggerInput < -.2) {
+            double powerControl = remapRange(HIGHEST_POSITION, LOWEST_POSITION-20, 0, remapControl, currentPosition);
+            powerControl = 1/Math.pow(Math.abs(powerControl),3);
+            slide.setPower(powerControl*triggerInput);
         }
         else {
-            intake.setPower(0);
+            slide.setPower(0);
         }
+        
+        telemetry.addData("currentPosition", currentPosition);
     }
     
     
     private void arm() {
-        // initialize at -1 to avoid compiler error
-        // TODO: rewrite
-        int lArmTargetPos = -1;
-        int uArmTargetPos = -1;
-        boolean move = false;
-        
-        if (gamepad2.dpad_down) {
-            lArmTargetPos = L_ARM_POSITIONS[0];
-            uArmTargetPos = U_ARM_POSITIONS[0];
-            move = true;
+        if (gamepad2.right_bumper && arm.getPower() != 1.0) {
+            arm.setPower(1.0);
         }
-        else if (gamepad2.dpad_left) {
-            lArmTargetPos = L_ARM_POSITIONS[1];
-            uArmTargetPos = U_ARM_POSITIONS[1]; 
-            move = true;
+        else if (gamepad2.left_bumper && arm.getPower() != -1.0) {
+            arm.setPower(-1.0);
         }
-        else if (gamepad2.dpad_up) {
-            lArmTargetPos = L_ARM_POSITIONS[1];
-            if (lArm.getCurrentPosition() > lArmTargetPos/1.4) {
-            uArmTargetPos = U_ARM_POSITIONS[2]; }
-            move = true;
+        else if (arm.getPower() != 0.0) {
+            arm.setPower(0.0);
         }
-        else if (gamepad2.dpad_right) {
-            lArmTargetPos = L_ARM_POSITIONS[0];
-            uArmTargetPos = U_ARM_POSITIONS[3];
-            move = true;
+    }
+    
+    
+    private void drone() {
+        if (gamepad2.y) {
+            drone.setPosition(.9);
         }
-        else if (gamepad2.x) {
-            lArmTargetPos = L_ARM_POSITIONS[1];
-            uArmTargetPos = U_ARM_POSITIONS[4];
+        else {
+            drone.setPosition(.5);
         }
-        
-        if (gamepad2.a && gamepad2.b) {
-            lArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            uArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        }
-        
-        // return if the arm shouldn't move
-        if (!move) return;
-        
-        // lower arm
-        lArm.setTargetPosition(lArmTargetPos);
-        lArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        lArm.setVelocity(L_ARM_VELOCITY);
-        
-        // upper arm
-        uArm.setTargetPosition(uArmTargetPos);
-        uArm.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        uArm.setVelocity(U_ARM_VELOCITY);
     }
     
     
     private void gripper() {
-        lastGripperGripping = gripperGripping;
-        if (gamepad2.right_bumper) {
-            gripperGripping = false;
+        if (gamepad2.x) {
+            lGripper.setPosition(.2);
+            rGripper.setPosition(.2);
         }
         else {
-            gripperGripping = true;
+            lGripper.setPosition(.08);
+            rGripper.setPosition(.3);
         }
         
-        if (lastGripperGripping != gripperGripping) {
-            if (gripperGripping) {
-                lGrip.setPosition(GRIPPER_OPEN);
-                rGrip.setPosition(GRIPPER_OPEN);
-            }
-            else {
-                lGrip.setPosition(GRIPPER_CLOSE);
-                lGrip.setPosition(GRIPPER_CLOSE);
-            }
-        }
-    }
-    
-    
-    private void droneLauncher() {
-
-        if (gamepad2.b) {
-            droneLauncher.setPosition(0.7);
-        }
-        else {
-            droneLauncher.setPosition(0.2);
-        }
-    }
-    
-    
-    private void telemetry() {
-        telemetry.update();
+        // if (gamepad2.x) {
+        //     gripper.setPosition(.6);
+        // }
+        // else {
+        //     gripper.setPosition(1.6);
+        // }
     }
 }
