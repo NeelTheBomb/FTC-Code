@@ -16,7 +16,7 @@ import static org.firstinspires.ftc.teamcode.lib.MathStuff.shortestAngleRemapped
 
 
 public class PreciseMovement {
-    private static DcMotorEx fr, fl, br, bl;
+    private static DcMotorEx fr, fl, br, bl, opv, oph;
     private static BNO055IMU imu;
 
     // MovementPID
@@ -26,19 +26,23 @@ public class PreciseMovement {
     private static double angleKp, angleKi, angleKd, angleIntegralPrior, angleErrorPrior, movementTolerance, angleTolerance;
 
     // Positions and Motor Ticks
-    private static double xPos, yPos, flPastTick, frPastTick, blPastTick, brPastTick;
+    private static double xPos, yPos, flPastTick, frPastTick, blPastTick, brPastTick, ophPastTick, opvPastTick;
 
 
     /******* PUBLIC FUNCTIONS ********/
     // all motors run forward
-    public static void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl) {
-        _init(imu, fr, fl, br, bl, false, false, false, false);
+    public static void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, 
+            DcMotorEx br, DcMotorEx bl, DcMotorEx oph, DcMotorEx opv) {
+                
+        _init(imu, opv, oph, fr, fl, br, bl, false, false, false, false);
     }
     
     // Specify which motors to reverse
-    public static void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
-                     boolean flRev, boolean brRev, boolean blRev) {
-        _init(imu, fr, fl, br, bl, frRev, flRev, brRev, blRev);
+    public static void init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, 
+            DcMotorEx br, DcMotorEx bl, boolean frRev, boolean flRev, 
+            boolean brRev, boolean blRev) {
+                
+        _init(imu, opv, oph, fr, fl, br, bl, frRev, flRev, brRev, blRev);
     }
 
 
@@ -82,6 +86,33 @@ public class PreciseMovement {
         blPastTick = bl.getCurrentPosition();
         brPastTick = br.getCurrentPosition();
     }
+    
+    
+    
+    public static void updateDeadWheelPos() {
+        double ophTick = oph.getCurrentPosition() - ophPastTick;
+        double opvTick = opv.getCurrentPosition() - opvPastTick;
+
+        Vector currentVector = finalDeadWheelVector(ophTick, opvTick, -imu.getAngularOrientation().firstAngle);
+        double[] pos = newPosition(xPos, yPos, currentVector);
+        xPos = pos[0];
+        yPos = pos[1];
+
+        // remember past encoder values
+        ophPastTick = oph.getCurrentPosition();
+        opvTick = opv.getCurrentPosition();
+    }
+    
+    
+    private static Vector finalDeadWheelVector(double delta_oph, double delta_opv, double robotAngle) {
+        Vector ophVector = new Vector(delta_oph, Math.PI + robotAngle);
+        Vector opvVector = new Vector(delta_opv, Math.PI*0.5 + robotAngle);
+
+        Vector[] deadWheelVectors = new Vector[] {ophVector, opvVector};
+        // just using a random vector to use the add function in the vector class
+        Vector finalVector = ophVector.add(deadWheelVectors);
+        return new Vector(finalVector.getMagnitude(), finalVector.getAngle() + robotAngle);
+    }
 
 
     public static double distanceFromPos(double targetPosX, double targetPosY) {
@@ -116,13 +147,24 @@ public class PreciseMovement {
 
 
     /******* PRIVATE FUNCTIONS ********/
-    private static void _init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, DcMotorEx br, DcMotorEx bl, boolean frRev, 
-                       boolean flRev, boolean brRev, boolean blRev) {
+    private static void _init(BNO055IMU imu, DcMotorEx fr, DcMotorEx fl, 
+            DcMotorEx br, DcMotorEx bl, DcMotorEx opv, DcMotorEx oph, 
+            boolean frRev, boolean flRev, boolean brRev, boolean blRev) {
+                
+        PreciseMovement.imu = imu;
+        
+        PreciseMovement.opv = opv;
+        PreciseMovement.oph = oph;
+        
         PreciseMovement.fr = fr;
         PreciseMovement.fl = fl;
         PreciseMovement.br = br;
         PreciseMovement.bl = bl;
-        PreciseMovement.imu = imu;
+        
+        if (frRev) { fr.setDirection(DcMotor.Direction.REVERSE); }
+        if (flRev) { fl.setDirection(DcMotor.Direction.REVERSE); }
+        if (brRev) { br.setDirection(DcMotor.Direction.REVERSE); }
+        if (blRev) { bl.setDirection(DcMotor.Direction.REVERSE); }
 
         PreciseMovement.movementKp = 0.5;
         PreciseMovement.movementKi = 0.0;
@@ -145,11 +187,6 @@ public class PreciseMovement {
         PreciseMovement.frPastTick = 0.0;
         PreciseMovement.blPastTick = 0.0;
         PreciseMovement.brPastTick = 0.0;
-        
-        if (frRev) { fr.setDirection(DcMotor.Direction.REVERSE); }
-        if (flRev) { fl.setDirection(DcMotor.Direction.REVERSE); }
-        if (brRev) { br.setDirection(DcMotor.Direction.REVERSE); }
-        if (blRev) { bl.setDirection(DcMotor.Direction.REVERSE); }
     }
 
 
@@ -164,6 +201,7 @@ public class PreciseMovement {
         Vector finalVector = blvector.add(wheelVectors);
         return new Vector(finalVector.getMagnitude(), finalVector.getAngle() + robotAngle);
     }
+    
 
 
     private static double[] newPosition(double oldX, double oldY, Vector finalVector) {
