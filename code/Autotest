@@ -1,0 +1,36 @@
+package org.firstinspires.ftc.teamcode.Centerstage;
+
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.teamcode.lib.AutonomousState;
+
+
+@Autonomous(name="Autotest", group="Autonomous")
+public class AutoTest extends LinearOpMode {
+    private DcMotorEx fl, fr, bl, br, oph, opv;
+    private AutonomousState state;
+
+    @Override
+    public void runOpMode() {
+        fl = hardwareMap.get(DcMotorEx.class, "frontLeft");
+        bl = hardwareMap.get(DcMotorEx.class, "backLeft");
+        fr = hardwareMap.get(DcMotorEx.class, "frontRight");
+        br = hardwareMap.get(DcMotorEx.class, "backRight");
+        oph = hardwareMap.get(DcMotorEx.class, "frontLeft");
+        opv = hardwareMap.get(DcMotorEx.class, "backLeft");
+        
+        state = AutonomousState.Entry;
+        
+        waitForStart();
+        if (isStopRequested()) return;
+
+        while (opModeIsActive() && state != AutonomousState.Stop) {
+            state = state.run(fl, bl, fr, br, opv, oph);
+        }
+    }   
+}
