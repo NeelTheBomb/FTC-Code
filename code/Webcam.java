@@ -16,205 +16,234 @@ import org.openftc.easyopencv.OpenCvInternalCamera;
 import org.openftc.easyopencv.OpenCvPipeline;
 
 @TeleOp
-public class Webcam extends LinearOpMode{
-    
-        OpenCvInternalCamera phoneCam;
-        CamPipeline pipeline;
+public class DocumentedWebcam extends LinearOpMode {
+
+  OpenCvInternalCamera phoneCam;
+  CamPipeline pipeline;
+
+  @Override
+  public void runOpMode() {
+
+    int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+    phoneCam = OpenCvCameraFactory.getInstance().createInternalCamera(OpenCvInternalCamera.CameraDirection.BACK, cameraMonitorViewId);
+    pipeline = new CamPipeline();
+    phoneCam.setPipeline(pipeline);
+
+    //Optimize view so that we can get most accurate image
+    phoneCam.setViewportRenderingPolicy(OpenCvCamera.ViewportRenderingPolicy.OPTIMIZE_VIEW);
+
+    //Start of Stream/Opening Camera
+    phoneCam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener() {
+      @Override
+      public void onOpened() {
+        phoneCam.startStreaming(320, 240, OpenCvCameraRotation.SIDEWAYS_LEFT);
+      }
+
+      @Override
+      public void onError(int errorCode) {
+        // for if camera unopened
+      }
+    });
+
+    waitForStart();
+
+    while (opModeIsActive()) {
+      telemetry.addData("Analysis", pipeline.getAnalysis());
+      telemetry.update();
+      //prevent burn out cpu
+      sleep(50);
+    }
+  }
+  public static class CamPipeline extends OpenCvPipeline {
+    //enum for position
+    public enum BotPosition {
+      LEFT,
+      CENTER,
+      RIGHT
+    }
+
+    //color constants
+    static final Scalar BLUE = new Scalar(0, 0, 255);
+    static final Scalar GREEN = new Scalar(0, 255, 0);
+
+    //adjustable core values for region location and size when scanning
+    static final Point REGION1_TOPLEFT_ANCHOR_POINT = new Point(109, 98);
+    static final Point REGION2_TOPLEFT_ANCHOR_POINT = new Point(181, 98);
+    static final Point REGION3_TOPLEFT_ANCHOR_POINT = new Point(253, 98);
+    static final int REGION_WIDTH = 20;
+    static final int REGION_HEIGHT = 20;
+
+    /*
+     * Points which actually define the sample region rectangles, derived from above values
+     *
+     * Example of how points A and B work to define a rectangle
+     *
+     *   ------------------------------------
+     *   | (0,0) Point A                    |
+     *   |                                  |
+     *   |                                  |
+     *   |                                  |
+     *   |                                  |
+     *   |                                  |
+     *   |                                  |
+     *   |                  Point B (70,50) |
+     *   ------------------------------------
+     *
+     */
+
+    //Found this :P
+
+    Point region1_pointA = new Point(
+      REGION1_TOPLEFT_ANCHOR_POINT.x,
+      REGION1_TOPLEFT_ANCHOR_POINT.y);
+    Point region1_pointB = new Point(
+      REGION1_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
+      REGION1_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+    Point region2_pointA = new Point(
+      REGION2_TOPLEFT_ANCHOR_POINT.x,
+      REGION2_TOPLEFT_ANCHOR_POINT.y);
+    Point region2_pointB = new Point(
+      REGION2_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
+      REGION2_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+    Point region3_pointA = new Point(
+      REGION3_TOPLEFT_ANCHOR_POINT.x,
+      REGION3_TOPLEFT_ANCHOR_POINT.y);
+    Point region3_pointB = new Point(
+      REGION3_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
+      REGION3_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+
+    //Variables for color detection
+    Mat region1_Cb, region2_Cb, region3_Cb;
+    Mat YCrCb = new Mat();
+    Mat Cb = new Mat();
+    int avg1, avg2, avg3;
+
+    private volatile BotPosition position = BotPosition.LEFT;
+
+    /*
+        convert from RGB to YCrCb because its more efficient
+        extracts cb to be used
+    */
+
+    void inputToCb(Mat input) {
+      Imgproc.cvtColor(input, YCrCb, Imgproc.COLOR_RGB2YCrCb);
+      Core.extractChannel(YCrCb, Cb, 1);
+    }
 
     @Override
-    public void runOpMode()
-    {
+    public void init(Mat firstFrame) {
 
+      //initializes cb
 
-        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-        phoneCam = OpenCvCameraFactory.getInstance().createInternalCamera(OpenCvInternalCamera.CameraDirection.BACK, cameraMonitorViewId);
-        pipeline = new CamPipeline();
-        phoneCam.setPipeline(pipeline);
+      inputToCb(firstFrame);
 
-
-        phoneCam.setViewportRenderingPolicy(OpenCvCamera.ViewportRenderingPolicy.OPTIMIZE_VIEW);
-
-        phoneCam.openCameraDeviceAsync(new OpenCvCamera.AsyncCameraOpenListener()
-        {
-            @Override
-            public void onOpened()
-            {
-                phoneCam.startStreaming(320,240, OpenCvCameraRotation.SIDEWAYS_LEFT);
-            }
-
-            @Override
-            public void onError(int errorCode)
-            {
-
-            }
-        });
-
-        waitForStart();
-
-        while (opModeIsActive())
-        {
-            telemetry.addData("Analysis", pipeline.getAnalysis());
-            telemetry.update();
-
-            sleep(50);
-        }
+      //persistent reference to parent region so changes to this will effect parent
+      //makes everything easier
+      region1_Cb = Cb.submat(new Rect(region1_pointA, region1_pointB));
+      region2_Cb = Cb.submat(new Rect(region2_pointA, region2_pointB));
+      region3_Cb = Cb.submat(new Rect(region3_pointA, region3_pointB));
     }
-    public static class CamPipeline extends OpenCvPipeline
-    {
 
-        public enum BotPosition
-        {
-            LEFT,
-            CENTER,
-            RIGHT
-        }
+    @Override
+    public Mat processFrame(Mat input) {
 
-        /*
-         * Some color constants
-         */
-        static final Scalar BLUE = new Scalar(0, 0, 255);
-        static final Scalar GREEN = new Scalar(0, 255, 0);
+      /*
+       * 
+       *
+       * chroma and
+       * luma are intertwined. In YCrCb, chroma and luma are separated.
+       * YCrCb is a 3-channel color space, just like RGB. YCrCb's 3 channels
+       * are Y, the luma channel (which essentially just a B&W image), the
+       * Cr channel, which records the difference from red, and the Cb channel,
+       * which records the difference from blue. Because chroma and luma are
+       * not related in YCrCb, vision code written to look for certain values
+       * in the Cr/Cb channels will not be severely affected by differing
+       * light intensity, since that difference would most likely just be
+       * reflected in the Y channel.
+       *
+       * after convert to YCrCb, we extract desired channel,
+       *
+       *
+       * take the average pixel value of 3 different regions on that Cb
+       * channel, one positioned over each stone. 
+       *
+       * We adraw rectangles on the screen showing where the sample regions
+       * are, as well as drawing a solid rectangle over top the sample region
+       *
 
+       */
 
-        static final Point REGION1_TOPLEFT_ANCHOR_POINT = new Point(109,98);
-        static final Point REGION2_TOPLEFT_ANCHOR_POINT = new Point(181,98);
-        static final Point REGION3_TOPLEFT_ANCHOR_POINT = new Point(253,98);
-        static final int REGION_WIDTH = 20;
-        static final int REGION_HEIGHT = 20;
+      //get Cb channel and its values
+      inputToCb(input);
 
-    
-        Point region1_pointA = new Point(
-                REGION1_TOPLEFT_ANCHOR_POINT.x,
-                REGION1_TOPLEFT_ANCHOR_POINT.y);
-        Point region1_pointB = new Point(
-                REGION1_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
-                REGION1_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
-        Point region2_pointA = new Point(
-                REGION2_TOPLEFT_ANCHOR_POINT.x,
-                REGION2_TOPLEFT_ANCHOR_POINT.y);
-        Point region2_pointB = new Point(
-                REGION2_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
-                REGION2_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
-        Point region3_pointA = new Point(
-                REGION3_TOPLEFT_ANCHOR_POINT.x,
-                REGION3_TOPLEFT_ANCHOR_POINT.y);
-        Point region3_pointB = new Point(
-                REGION3_TOPLEFT_ANCHOR_POINT.x + REGION_WIDTH,
-                REGION3_TOPLEFT_ANCHOR_POINT.y + REGION_HEIGHT);
+      //find average pixel value of each region
+      avg1 = (int) Core.mean(region1_Cb).val[0];
+      avg2 = (int) Core.mean(region2_Cb).val[0];
+      avg3 = (int) Core.mean(region3_Cb).val[0];
 
+      //visual aid
+      Imgproc.rectangle(
+        input, // Buffer to draw on
+        region1_pointA, // First point which defines the rectangle
+        region1_pointB, // Second point which defines the rectangle
+        BLUE, // The color the rectangle is drawn in
+        2); // Thickness of the rectangle lines
 
-        Mat region1_Cb, region2_Cb, region3_Cb;
-        Mat YCrCb = new Mat();
-        Mat Cb = new Mat();
-        int avg1, avg2, avg3;
+      Imgproc.rectangle(
+        input,
+        region2_pointA,
+        region2_pointB,
+        BLUE,
+        2);
 
+      Imgproc.rectangle(
+        input,
+        region3_pointA,
+        region3_pointB,
+        BLUE,
+        2);
 
-        private volatile BotPosition position = BotPosition.LEFT;
+      //find max to help identify desired region
+      int maxOneTwo = Math.max(avg1, avg2);
+      int max = Math.max(maxOneTwo, avg3);
 
+      //need to find desired region by using checks
+      if (max == avg1) {
+        position = BotPosition.LEFT;
 
-        void inputToCb(Mat input)
-        {
-            Imgproc.cvtColor(input, YCrCb, Imgproc.COLOR_RGB2YCrCb);
-            Core.extractChannel(YCrCb, Cb, 1);
-        }
+        Imgproc.rectangle(
+          input,
+          region1_pointA,
+          region1_pointB,
+          GREEN,
+          -1);
+      } else if (max == avg2) {
+        position = BotPosition.CENTER;
 
-        @Override
-        public void init(Mat firstFrame)
-        {
-        
-            inputToCb(firstFrame);
+        //draw rectangel as visual aid
+        Imgproc.rectangle(
+          input, // Buffer to draw on
+          region1_pointA, // First point which defines the rectangle
+          region1_pointB, // Second point which defines the rectangle
+          GREEN, // The color the rectangle is drawn in
+          -1); // Negative thickness means solid fill
+      } else if (max == avg3) {
+        position = BotPosition.RIGHT;
 
-
-            region1_Cb = Cb.submat(new Rect(region1_pointA, region1_pointB));
-            region2_Cb = Cb.submat(new Rect(region2_pointA, region2_pointB));
-            region3_Cb = Cb.submat(new Rect(region3_pointA, region3_pointB));
-        }
-
-        @Override
-        public Mat processFrame(Mat input)
-        {
-        
-            inputToCb(input);
-
-
-            avg1 = (int) Core.mean(region1_Cb).val[0];
-            avg2 = (int) Core.mean(region2_Cb).val[0];
-            avg3 = (int) Core.mean(region3_Cb).val[0];
-
-
-            Imgproc.rectangle(
-                    input, 
-                    region1_pointA, 
-                    region1_pointB, 
-                    BLUE, 
-                    2);
-            
-            Imgproc.rectangle(
-                    input, 
-                    region2_pointA, 
-                    region2_pointB, 
-                    BLUE, 
-                    2); 
-
-            Imgproc.rectangle(
-                    input, 
-                    region3_pointA, 
-                    region3_pointB, 
-                    BLUE,
-                    2); 
-
-
-
-            int maxOneTwo = Math.max(avg1, avg2);
-            int max = Math.max(maxOneTwo, avg3);
-
-
-            if(max == avg1) 
-            {
-                position = BotPosition.LEFT; 
-
-
-                Imgproc.rectangle(
-                        input, 
-                        region1_pointA, 
-                        region1_pointB, 
-                        GREEN, 
-                        -1); 
-            }
-            else if(max == avg2) 
-            {
-                position = BotPosition.CENTER; 
-
-
-                Imgproc.rectangle(
-                        input, 
-                        region2_pointA, 
-                        region2_pointB, 
-                        GREEN, 
-                        -1); 
-            }
-            else if(max == avg3) 
-            {
-                position = BotPosition.RIGHT; 
-
-                
-                Imgproc.rectangle(
-                        input, 
-                        region3_pointA, 
-                        region3_pointB, 
-                        GREEN, 
-                        -1); 
-            }
-
-            return input;
-        }
-
-
-        public BotPosition getAnalysis()
-        {
-            return position;
-        }
+        Imgproc.rectangle(
+          input,
+          region3_pointA,
+          region3_pointB,
+          GREEN,
+          -1);
+      }
+      //return our version of the feed to the viewport to use in scanning and viewing
+      return input;
     }
+
+    //get bot position for auton 
+    public BotPosition getAnalysis() {
+      return position;
+    }
+  }
 }
-
-   
