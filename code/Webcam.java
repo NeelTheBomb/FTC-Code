@@ -220,7 +220,7 @@ public class DocumentedWebcam extends LinearOpMode {
       } else if (max == avg2) {
         position = BotPosition.CENTER;
 
-        //draw rectangel as visual aid
+        //draw rectangle as visual aid
         Imgproc.rectangle(
           input, // Buffer to draw on
           region1_pointA, // First point which defines the rectangle
